@@ -341,5 +341,32 @@ $router->get('/api/safety/labs/{hn}', 'SafetyController@getLabs');
 // PHASE 4: LABEL ROUTES
 $router->get('/label/print/{dispense_id}/{item_id}', 'LabelController@printLabel');
 
+// ========================================
+// PHASE 5: NOTIFICATION & EXPORT ROUTES (v3.4.0)
+// ========================================
+
+// NOTIFICATION ROUTES
+$router->get('/notifications/settings', 'NotificationController@settings');
+$router->post('/notifications/save-settings', 'NotificationController@saveSettings');
+$router->post('/notifications/test-line', 'NotificationController@testLine');
+$router->post('/notifications/send-now', 'NotificationController@sendNow');
+$router->get('/notifications/recent', 'NotificationController@getRecent');
+$router->get('/notifications/cron-check', 'NotificationController@cronCheck');
+
+// EXPORT ROUTES
+$router->get('/export', 'ExportController@index');
+$router->get('/export/stock', 'ExportController@stock');
+$router->get('/export/expiring', 'ExportController@expiring');
+$router->get('/export/low-stock', 'ExportController@lowStock');
+$router->get('/export/dispensing', 'ExportController@dispensing');
+$router->get('/export/abc-ven', 'ExportController@abcVen');
+$router->get('/export/orders', 'ExportController@orders');
+$router->post('/export/custom', 'ExportController@custom');
+$router->get('/export/pdf', 'ExportController@pdf');
+
+// DASHBOARD API ROUTES
+$router->get('/api/dashboard/metrics', 'DashboardController@apiMetrics');
+$router->get('/api/dashboard/charts', 'DashboardController@apiCharts');
+
 // RUN ROUTER
 $router->run();

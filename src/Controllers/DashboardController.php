@@ -1,4 +1,11 @@
 <?php
+/**
+ * Dashboard Controller (Enhanced)
+ * Dashboard พร้อม Charts และ Real-time Metrics
+ * 
+ * @package Drugmuk
+ * @version 3.4.0
+ */
 
 namespace App\Controllers;
 
@@ -7,6 +14,7 @@ use App\Models\Order;
 use App\Models\Inventory;
 use App\Models\Contract;
 use App\Models\PurchasingPlan;
+use App\Services\DashboardChartService;
 
 class DashboardController extends Controller
 {
@@ -14,6 +22,7 @@ class DashboardController extends Controller
     private $inventoryModel;
     private $contractModel;
     private $purchasingPlanModel;
+    private $chartService;
 
     public function __construct()
     {
@@ -21,6 +30,7 @@ class DashboardController extends Controller
         $this->inventoryModel = new Inventory();
         $this->contractModel = new Contract();
         $this->purchasingPlanModel = new PurchasingPlan();
+        $this->chartService = new DashboardChartService();
     }
 
     /**
@@ -77,11 +87,59 @@ class DashboardController extends Controller
         $recentOrders = $this->orderModel->getRecent(5);
         $recentReceives = $this->inventoryModel->getRecentReceives(5);
 
+        // Chart data
+        $chartData = $this->chartService->getDashboardData();
+
         $this->view('dashboard/index', [
             'metrics' => $metrics,
             'alerts' => $alerts,
             'recent_orders' => $recentOrders,
-            'recent_receives' => $recentReceives
+            'recent_receives' => $recentReceives,
+            'chart_data' => $chartData
         ]);
+    }
+
+    /**
+     * API: Get real-time metrics
+     */
+    public function apiMetrics()
+    {
+        header('Content-Type: application/json');
+        $metrics = $this->chartService->getRealTimeMetrics();
+        echo json_encode(['success' => true, 'data' => $metrics]);
+    }
+
+    /**
+     * API: Get chart data
+     */
+    public function apiCharts()
+    {
+        header('Content-Type: application/json');
+        $type = $_GET['type'] ?? 'all';
+        
+        switch ($type) {
+            case 'dispensing':
+                $data = $this->chartService->getDispensingTrend();
+                break;
+            case 'stock_category':
+                $data = $this->chartService->getStockByCategory();
+                break;
+            case 'expiring':
+                $data = $this->chartService->getExpiringByPeriod();
+                break;
+            case 'orders':
+                $data = $this->chartService->getOrderTrend();
+                break;
+            case 'top_drugs':
+                $data = $this->chartService->getTopDrugs();
+                break;
+            case 'ven':
+                $data = $this->chartService->getStockByVEN();
+                break;
+            default:
+                $data = $this->chartService->getDashboardData();
+        }
+        
+        echo json_encode(['success' => true, 'data' => $data]);
     }
 }
