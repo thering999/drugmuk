@@ -368,5 +368,28 @@ $router->get('/export/pdf', 'ExportController@pdf');
 $router->get('/api/dashboard/metrics', 'DashboardController@apiMetrics');
 $router->get('/api/dashboard/charts', 'DashboardController@apiCharts');
 
+// ACTIVITY LOG ROUTES
+$router->get('/activity-log', 'ActivityLogController@index');
+$router->get('/activity-log/export', 'ActivityLogController@export');
+$router->post('/activity-log/cleanup', 'ActivityLogController@cleanup');
+$router->get('/api/activity-log/recent', 'ActivityLogController@apiRecent');
+$router->get('/api/activity-log/statistics', 'ActivityLogController@apiStatistics');
+
+// DRUG INTERACTION API ROUTES
+$router->post('/api/drug-interaction/check', 'Api\DrugInteractionController@check');
+$router->post('/api/drug-interaction/check-patient', 'Api\DrugInteractionController@checkPatient');
+$router->get('/api/drug-interaction/patient-drugs/{hn}', 'Api\DrugInteractionController@getPatientDrugs');
+$router->get('/api/drug-interaction/patient-allergies/{hn}', 'Api\DrugInteractionController@getPatientAllergies');
+$router->get('/api/drug-interaction/search', 'Api\DrugInteractionController@search');
+
+// BACKUP MANAGER ROUTES
+$router->get('/backup', 'BackupController@index');
+$router->post('/backup/create', 'BackupController@create');
+$router->get('/backup/download/{filename}', 'BackupController@download');
+$router->post('/backup/delete', 'BackupController@delete');
+$router->post('/backup/restore', 'BackupController@restore');
+$router->get('/backup/cron', 'BackupController@cronBackup');
+$router->get('/api/backup/status', 'BackupController@apiStatus');
+
 // RUN ROUTER
 $router->run();
