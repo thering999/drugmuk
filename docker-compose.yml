@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # Web Server (Nginx)
+  web:
+    image: nginx:alpine
+    container_name: drugmuk_web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php
+      - db
+      - redis
+    networks:
+      - drugmuk_network
+
+  # PHP-FPM
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drugmuk_php
+    volumes:
+      - ./:/var/www/html
+    env_file: .env
+    networks:
+      - drugmuk_network
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: drugmuk_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - drugmuk_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: drugmuk_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - drugmuk_network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: drugmuk_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - drugmuk_network
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  drugmuk_network:
+    driver: bridge

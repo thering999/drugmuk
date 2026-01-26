@@ -1,0 +1,13 @@
+{
+    "host": "localhost",
+    "port": "3306",
+    "dbname": "jhcisdb",
+    "user": "root",
+    "pass": "123456",
+    "tables": {
+        "drug": "drug",
+        "dispensing": "dispensing"
+    },
+    "updated_at": "2026-01-14 12:45:20",
+    "updated_by": 1
+}

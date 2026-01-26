@@ -1,0 +1,29 @@
+# PHP
+vendor/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+
+# Exports
+exports/
+
+# Database
+database/*.sql
+database/backups/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+.agent/
+.DS_Store
+Thumbs.db
