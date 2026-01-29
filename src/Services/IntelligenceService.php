@@ -423,24 +423,6 @@ class IntelligenceService
     }
 
     /**
-     * Get JHCIS Summary
-     */
-    public function getJHCISSummary()
-    {
-        if (!$this->jhcisDb) return ['connected' => false];
-        try {
-            $summary = ['connected' => true, 'patients_today' => 0, 'dispensing_today' => 0, 'top_diagnoses' => [], 'top_drugs' => []];
-            $summary['patients_today'] = (int)$this->jhcisDb->query("SELECT COUNT(DISTINCT hn) FROM ovst WHERE vstdate = CURDATE()")->fetchColumn();
-            $summary['dispensing_today'] = (int)$this->jhcisDb->query("SELECT COUNT(*) FROM opitemrece WHERE vstdate = CURDATE()")->fetchColumn();
-            $summary['top_diagnoses'] = $this->jhcisDb->query("SELECT icd10, COUNT(*) as cnt FROM ovstdiag WHERE vstdate = CURDATE() GROUP BY icd10 ORDER BY cnt DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
-            $summary['top_drugs'] = $this->jhcisDb->query("SELECT drugname, SUM(qty) as total_qty FROM opitemrece WHERE vstdate = CURDATE() GROUP BY drugname ORDER BY total_qty DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
-            return $summary;
-        } catch (\Exception $e) {
-            return ['connected' => true, 'error' => $e->getMessage()];
-        }
-    }
-
-    /**
      * Send Critical Alert to Discord/Telegram
      */
     public function sendCriticalAlert($type, $data)
