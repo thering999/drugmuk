@@ -358,6 +358,10 @@ $router->get('/api/intelligence/rdu-analysis', 'IntelligenceController@getRDUAna
 $router->get('/api/intelligence/high-cost-analysis', 'IntelligenceController@getHighCostAnalysis');
 $router->get('/api/intelligence/polypharmacy', 'IntelligenceController@getPolypharmacy');
 $router->post('/api/intelligence/auto-adjust-inventory', 'IntelligenceController@autoAdjustInventory');
+$router->get('/api/intelligence/jhcis-summary', 'IntelligenceController@getJHCISSummary');
+$router->get('/api/intelligence/cost-trend', 'IntelligenceController@getCostTrend');
+$router->post('/api/intelligence/send-alert', 'IntelligenceController@sendAlert');
+$router->get('/admin/intelligence/export-pdf', 'IntelligenceController@exportPDF');
 
 // PHASE 3: PATIENT ENGAGEMENT ROUTES
 $router->post('/api/engagement/send-reminder', 'EngagementController@sendReminder');
