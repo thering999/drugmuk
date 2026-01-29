@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php echo \App\Core\CSRF::metaTag(); ?>
     <title>ทำความสะอาดข้อมูล - Drugmuk</title>
     <style>
         * {
@@ -359,11 +360,23 @@
                 <button class="btn btn-warning" onclick="detectOrphaned()">
                     🔗 ตรวจหา Orphaned Records
                 </button>
+                <button class="btn btn-danger" onclick="detectQualityIssues()">
+                    ⚠️ ตรวจหาสินค้าที่มีปัญหา (ราคา/ข้อมูลขาด)
+                </button>
                 <a href="/admin/data-cleansing/duplicates" class="btn btn-primary">
                     📋 ดูรายการซ้ำ
                 </a>
                 <a href="/admin/data-cleansing/orphaned" class="btn btn-warning">
-                    📋 ดู Orphaned Records
+                    📋 ดู Orphaned & Issues
+                </a>
+                <a href="/admin/data-cleansing/quality-reports" class="btn btn-info" style="background: #06b6d4;">
+                    📊 รายงานคุณภาพข้อมูล
+                </a>
+                <a href="/admin/data-cleansing/bulk-edit" class="btn" style="background: #f59e0b; color: white;">
+                    ⚡ แก้ไขแบบกลุ่ม
+                </a>
+                <a href="/export/quality-report?format=csv" class="btn" style="background: #10b981; color: white;">
+                    📥 Export CSV
                 </a>
             </div>
         </div>
@@ -437,6 +450,12 @@
     </div>
 
     <script>
+        // Get CSRF token from meta tag or generate one
+        function getCSRFToken() {
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            return metaTag ? metaTag.content : '';
+        }
+
         function showAlert(message, type = 'success') {
             const container = document.getElementById('alert-container');
             const alert = document.createElement('div');
@@ -465,8 +484,12 @@
 
             showLoading();
             try {
+                const formData = new FormData();
+                
                 const response = await fetch('/api/data-cleansing/run-full-check', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
+                    body: formData
                 });
                 const data = await response.json();
                 
@@ -491,6 +514,7 @@
                 
                 const response = await fetch('/api/data-cleansing/detect-duplicates', {
                     method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
                     body: formData
                 });
                 const data = await response.json();
@@ -511,8 +535,12 @@
         async function detectOrphaned() {
             showLoading();
             try {
+                const formData = new FormData();
+                
                 const response = await fetch('/api/data-cleansing/detect-orphaned', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
+                    body: formData
                 });
                 const data = await response.json();
                 
@@ -520,6 +548,36 @@
                     let message = 'ตรวจสอบเสร็จสิ้น: ';
                     message += `Transactions: ${data.results.transactions.orphaned_found}, `;
                     message += `Order Items: ${data.results.order_items.orphaned_found}`;
+                    showAlert(message, 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showAlert('เกิดข้อผิดพลาด', 'error');
+                }
+            } catch (error) {
+                showAlert('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function detectQualityIssues() {
+            showLoading();
+            try {
+                const formData = new FormData();
+                
+                // We'll create a new endpoint or just use runFullCheck if preferred
+                // But let's assume we want a specific one or just use the controller methods via runFullCheck
+                const response = await fetch('/api/data-cleansing/run-full-check', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    let message = 'ตรวจสอบเสร็จสิ้น: ';
+                    message += `หาราคาผิดปกติ: ${data.results.invalid_prices.found}, `;
+                    message += `หาชื่อ/หน่วยขาด: ${data.results.missing_data.found}`;
                     showAlert(message, 'success');
                     setTimeout(() => location.reload(), 2000);
                 } else {

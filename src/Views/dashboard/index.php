@@ -87,6 +87,11 @@
             font-weight: bold;
             color: #667eea;
         }
+        
+        .metric-card.quality-excellent .value { color: #10b981; }
+        .metric-card.quality-good .value { color: #3b82f6; }
+        .metric-card.quality-fair .value { color: #f59e0b; }
+        .metric-card.quality-poor .value { color: #ef4444; }
 
         .alerts {
             background: white;
@@ -255,6 +260,8 @@
                 <a href="/dmsic" style="background: rgba(255,255,255,0.2);">🏥 DMSIC</a>
                 <a href="/data-cleansing" style="background: rgba(255,255,255,0.2);">🧹 Data Cleansing</a>
                 <a href="/realtime-sync" style="background: rgba(255,255,255,0.2);">⚡ Real-time Sync</a>
+                <a href="/notifications" style="background: rgba(255,255,255,0.2);">🔔 การแจ้งเตือน</a>
+                <a href="/audit-trail" style="background: rgba(255,255,255,0.2);">📜 Audit Trail</a>
                 <a href="/settings/database" style="background: rgba(255,255,255,0.4); border: 1px solid white;">⚙️ ตั้งค่าระบบ</a>
                 <a href="/updates" style="background: rgba(255,255,255,0.2);">🔄 อัพเดท</a>
             </nav>
@@ -281,6 +288,16 @@
                 <h3>🔔 คำขอเบิกค้างอนุมัติ</h3>
                 <div class="value"><?= $metrics['pending_disbursements_count'] ?? 0 ?></div>
             </div>
+            <?php 
+                $quality = $metrics['data_quality_score'][0] ?? ['quality_score' => 0, 'quality_rating' => 'poor'];
+                $qualityClass = 'quality-' . $quality['quality_rating'];
+            ?>
+            <a href="/data-cleansing" style="text-decoration: none;">
+                <div class="metric-card <?= $qualityClass ?>">
+                    <h3>🧹 คะแนนคุณภาพข้อมูล</h3>
+                    <div class="value"><?= number_format($quality['quality_score'], 1) ?>%</div>
+                </div>
+            </a>
         </div>
 
         <?php if (!empty($alerts)): ?>

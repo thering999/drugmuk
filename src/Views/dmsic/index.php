@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>DMSIC Integration - Drugmuk</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -442,6 +443,10 @@
     </div>
 
     <script>
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
+
         // Export Data
         async function exportData() {
             const result = await Swal.fire({
@@ -464,7 +469,12 @@
             });
 
             try {
-                const response = await fetch('/dmsic/send', { method: 'POST' });
+                const response = await fetch('/dmsic/send', { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': getCSRFToken()
+                    }
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -514,7 +524,12 @@
             });
 
             try {
-                const response = await fetch(`/dmsic/api/send/${id}`, { method: 'POST' });
+                const response = await fetch(`/dmsic/api/send/${id}`, { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': getCSRFToken()
+                    }
+                });
                 const data = await response.json();
 
                 if (data.success) {

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Services\LineNotificationService;
 use PDO;
 
 /**
@@ -13,10 +14,12 @@ use PDO;
 class SafetyService
 {
     private $db;
+    private $lineService;
     
     public function __construct()
     {
         $this->db = Database::getInstance()->getConnection();
+        $this->lineService = new LineNotificationService();
     }
     
     /**
@@ -69,6 +72,13 @@ class SafetyService
                     'value' => $latestEGFR['value'],
                     'unit' => $latestEGFR['unit']
                 ];
+
+                // Send LINE Alert for major safety issues
+                $this->lineService->sendClinicalAlert(
+                    $hn, // In a real system you'd fetch patient name
+                    'Renal Safety (eGFR)',
+                    $rule['alert_message'] . " (Current: " . $latestEGFR['value'] . ")"
+                );
             }
         }
         

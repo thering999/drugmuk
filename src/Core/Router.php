@@ -61,13 +61,17 @@ class Router {
             $pattern = "#^" . $pattern . "/?$#";
 
             if (preg_match($pattern, $uri, $matches)) {
-                // CSRF Protection for state-changing methods
                 if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
                     try {
                         \App\Core\CSRF::verifyRequest();
                     } catch (\Exception $e) {
                         http_response_code(403);
-                        echo "Forbidden: " . $e->getMessage();
+                        header('Content-Type: application/json');
+                        echo json_encode([
+                            'success' => false,
+                            'error' => 'CSRF validation failed',
+                            'message' => $e->getMessage()
+                        ]);
                         return;
                     }
                 }

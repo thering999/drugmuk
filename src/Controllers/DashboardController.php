@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Inventory;
 use App\Models\Contract;
 use App\Models\PurchasingPlan;
+use App\Models\DataCleansing;
 
 class DashboardController extends Controller
 {
@@ -14,6 +15,7 @@ class DashboardController extends Controller
     private $inventoryModel;
     private $contractModel;
     private $purchasingPlanModel;
+    private $cleansingModel;
 
     public function __construct()
     {
@@ -21,6 +23,7 @@ class DashboardController extends Controller
         $this->inventoryModel = new Inventory();
         $this->contractModel = new Contract();
         $this->purchasingPlanModel = new PurchasingPlan();
+        $this->cleansingModel = new DataCleansing();
     }
 
     /**
@@ -34,7 +37,8 @@ class DashboardController extends Controller
             'expiring_soon_count' => $this->inventoryModel->getExpiringSoonCount(90),
             'pending_orders_count' => $this->orderModel->getPendingOrdersCount(),
             'expiring_contracts_count' => $this->contractModel->getExpiringContractsCount(30),
-            'pending_disbursements_count' => $this->inventoryModel->getPendingDisbursementsCount()
+            'pending_disbursements_count' => $this->inventoryModel->getPendingDisbursementsCount(),
+            'data_quality_score' => $this->cleansingModel->getDataQualityScore()
         ];
 
         // Get alerts

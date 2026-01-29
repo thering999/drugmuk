@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายการยาจาก JHCIS - Drugmuk</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -622,11 +623,28 @@
                         ← ก่อนหน้า
                     </button>
                     
-                    <?php for ($i = 1; $i <= min($totalPages, 10); $i++): ?>
+                    <?php 
+                    $startPage = max(1, ($page ?? 1) - 2);
+                    $endPage = min($totalPages, $startPage + 4);
+                    if ($endPage - $startPage < 4) {
+                        $startPage = max(1, $endPage - 4);
+                    }
+                    
+                    if ($startPage > 1): ?>
+                        <button onclick="goToPage(1)">1</button>
+                        <?php if ($startPage > 2): ?><span>...</span><?php endif; ?>
+                    <?php endif; ?>
+
+                    <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
                         <button onclick="goToPage(<?= $i ?>)" class="<?= $i == ($page ?? 1) ? 'active' : '' ?>">
                             <?= $i ?>
                         </button>
                     <?php endfor; ?>
+                    
+                    <?php if ($endPage < $totalPages): ?>
+                        <?php if ($endPage < $totalPages - 1): ?><span>...</span><?php endif; ?>
+                        <button onclick="goToPage(<?= $totalPages ?>)"><?= $totalPages ?></button>
+                    <?php endif; ?>
                     
                     <button onclick="goToPage(<?= min($totalPages, ($page ?? 1) + 1) ?>)" <?= ($page ?? 1) >= $totalPages ? 'disabled' : '' ?>>
                         ถัดไป →
@@ -879,7 +897,10 @@
             try {
                 const response = await fetch('/jhcis-import/bulk-import', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                    },
                     body: JSON.stringify({ drugs })
                 });
 
@@ -917,7 +938,7 @@
             document.getElementById('batchPriceModal').classList.remove('show');
         }
 
-        function applyBatchPrice() {
+        async function applyBatchPrice() {
             const method = document.getElementById('priceMethod').value;
             const value = parseFloat(document.getElementById('priceValue').value);
             
@@ -926,8 +947,42 @@
                 return;
             }
 
-            alert(`อัพเดทราคา ${selectedDrugs.size} รายการ (${method}: ${value})`);
-            closeBatchPriceModal();
+            if (!confirm(`ยืนยันการอัพเดทราคา ${selectedDrugs.size} รายการ?`)) {
+                return;
+            }
+
+            const btn = document.querySelector('#batchPriceModal .btn-success');
+            btn.disabled = true;
+            btn.textContent = '⏳ กำลังอัพเดท...';
+
+            try {
+                const response = await fetch('/jhcis-drugs/batch-price', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                    },
+                    body: JSON.stringify({
+                        drug_codes: Array.from(selectedDrugs),
+                        method: method,
+                        value: value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✓ ยืนยัน';
+                closeBatchPriceModal();
+            }
         }
 
         // Auto mapping
@@ -936,21 +991,45 @@
             const progress = document.getElementById('mappingProgress');
             const status = document.getElementById('mappingStatus');
             
-            // Simulate progress
-            let percent = 0;
-            const interval = setInterval(() => {
-                percent += 10;
-                progress.style.width = percent + '%';
-                status.textContent = `กำลังวิเคราะห์... ${percent}%`;
-                
-                if (percent >= 100) {
-                    clearInterval(interval);
+            progress.style.width = '30%';
+            status.textContent = '🔍 กำลังวิเคราะห์ข้อมูลยา...';
+
+            try {
+                const response = await fetch('/jhcis-drugs/auto-mapping');
+                const data = await response.json();
+
+                progress.style.width = '80%';
+                status.textContent = '✨ คำนวณความคล้ายคลึงของชื่อ...';
+
+                if (data.success && data.suggestions.length > 0) {
+                    let matchedCount = 0;
+                    data.suggestions.forEach(suggestion => {
+                        const checkbox = document.querySelector(`.drug-checkbox[value="${suggestion.jhcis_code}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            selectedDrugs.add(suggestion.jhcis_code);
+                            const row = checkbox.closest('tr');
+                            row.style.background = '#f0fff4'; // Light green for matches
+                            matchedCount++;
+                        }
+                    });
+
+                    progress.style.width = '100%';
+                    status.textContent = '✅ วิเคราะห์เสร็จสิ้น!';
+                    
                     setTimeout(() => {
                         document.getElementById('autoMappingModal').classList.remove('show');
-                        alert('✅ Auto Mapping เสร็จสิ้น! พบการ match 15 รายการ');
-                    }, 500);
+                        updateSelectionInfo();
+                        alert(`🤖 Auto Mapping เสร็จสิ้น!\n\nพบรายการที่ตรงกัน ${matchedCount} รายการ\nกรุณาตรวจสอบและกด "Import" เพื่อบันทึกเข้าสู่ระบบ`);
+                    }, 800);
+                } else {
+                    document.getElementById('autoMappingModal').classList.remove('show');
+                    alert('🤖 ไม่พบรายการที่สามารถ Map อัตโนมัติได้เพิ่มเติม');
                 }
-            }, 300);
+            } catch (error) {
+                document.getElementById('autoMappingModal').classList.remove('show');
+                alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            }
         }
 
         // Export Excel

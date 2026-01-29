@@ -14,6 +14,7 @@ if (!isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>รายงานคุณภาพข้อมูล - Drugmuk</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -66,19 +67,42 @@ if (!isset($_SESSION['user_id'])) {
         <div class="grid">
             <div class="card">
                 <div class="card-title">คะแนนคุณภาพรวม</div>
-                <div class="stat-number"><?php echo number_format($qualitySummary['overall_score'] ?? 0, 1); ?>%</div>
+                <?php 
+                    $score = 0;
+                    if (is_array($qualitySummary) && !empty($qualitySummary)) {
+                        $firstItem = reset($qualitySummary);
+                        $score = $firstItem['quality_score'] ?? ($qualitySummary['overall_score'] ?? 0);
+                    }
+                ?>
+                <div class="stat-number"><?php echo number_format($score, 1); ?>%</div>
                 <div class="stat-label">Overall Quality Score</div>
             </div>
 
             <div class="card">
                 <div class="card-title">ยาที่ซ้ำกัน</div>
-                <div class="stat-number"><?php echo number_format($qualitySummary['duplicate_count'] ?? 0); ?></div>
+                <?php 
+                    $dupCount = 0;
+                    foreach ($qualitySummary as $item) {
+                        if (($item['metric_name'] ?? '') === 'duplicate_candidates') {
+                            $dupCount = $item['metric_value'] ?? 0;
+                        }
+                    }
+                ?>
+                <div class="stat-number"><?php echo number_format($dupCount); ?></div>
                 <div class="stat-label">รายการที่ตรวจพบ</div>
             </div>
 
             <div class="card">
                 <div class="card-title">Orphaned Records</div>
-                <div class="stat-number"><?php echo number_format($qualitySummary['orphaned_count'] ?? 0); ?></div>
+                <?php 
+                    $orphCount = 0;
+                    foreach ($qualitySummary as $item) {
+                        if (($item['metric_name'] ?? '') === 'orphaned_records') {
+                            $orphCount = $item['metric_value'] ?? 0;
+                        }
+                    }
+                ?>
+                <div class="stat-number"><?php echo number_format($orphCount); ?></div>
                 <div class="stat-label">รายการที่ต้องแก้ไข</div>
             </div>
         </div>

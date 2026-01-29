@@ -23,7 +23,7 @@ class SessionSecurity
         // Configure secure session settings
         ini_set('session.cookie_httponly', '1');
         ini_set('session.use_only_cookies', '1');
-        ini_set('session.cookie_samesite', 'Strict');
+        ini_set('session.cookie_samesite', 'Lax');
         
         // Enable secure cookie only if HTTPS
         if (self::isHTTPS()) {

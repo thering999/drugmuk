@@ -16,6 +16,7 @@ if (!isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= \App\Core\CSRF::token() ?>">
     <title>JHCIS Integration - Drugmuk</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -248,6 +249,10 @@ if (!isset($_SESSION['user_id'])) {
     <script>
         let pollInterval;
 
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             loadStats();
             loadSyncHistory();
@@ -357,7 +362,10 @@ if (!isset($_SESSION['user_id'])) {
             try {
                 const res = await fetch('/api/jhcis/sync/dispensing', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': getCSRFToken()
+                    },
                     body: `from_date=${from}&to_date=${to}`
                 });
                 const result = await res.json();
@@ -445,6 +453,25 @@ if (!isset($_SESSION['user_id'])) {
                 div.innerHTML = '<div class="alert alert-danger">Error: ' + e.message + '</div>'; 
             }
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

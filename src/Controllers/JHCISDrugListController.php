@@ -354,4 +354,134 @@ class JHCISDrugListController extends Controller {
             exit;
         }
     }
+
+    /**
+     * อัพเดทราคาแบบกลุ่ม
+     */
+    public function batchUpdatePrice() {
+        header('Content-Type: application/json');
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            exit;
+        }
+
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $drugCodes = $input['drug_codes'] ?? [];
+            $method = $input['method'] ?? 'set';
+            $value = floatval($input['value'] ?? 0);
+
+            if (empty($drugCodes)) {
+                throw new \Exception('กรุณาเลือกรายการที่ต้องการอัพเดท');
+            }
+
+            $updated = 0;
+            foreach ($drugCodes as $code) {
+                if ($method === 'set') {
+                    $sql = "UPDATE drugs SET price = ?, updated_at = NOW() WHERE code = ?";
+                    $stmt = $this->db->prepare($sql);
+                    $stmt->execute([$value, $code]);
+                } elseif ($method === 'increase') {
+                    $sql = "UPDATE drugs SET price = price * (1 + ?/100), updated_at = NOW() WHERE code = ?";
+                    $stmt = $this->db->prepare($sql);
+                    $stmt->execute([$value, $code]);
+                } elseif ($method === 'decrease') {
+                    $sql = "UPDATE drugs SET price = price * (1 - ?/100), updated_at = NOW() WHERE code = ?";
+                    $stmt = $this->db->prepare($sql);
+                    $stmt->execute([$value, $code]);
+                }
+                $updated++;
+            }
+
+            echo json_encode([
+                'success' => true, 
+                'message' => "อัพเดทราคาสำเร็จ {$updated} รายการ"
+            ]);
+
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
+     * แนะนำการ Mapping อัตโนมัติ
+     */
+    public function suggestAutoMapping() {
+        header('Content-Type: application/json');
+        
+        try {
+            $this->connectJHCIS();
+            $tableName = $this->detectDrugTable();
+            
+            // ดึงยา JHCIS ทั้งหมด (จำกัด 500 รายการเพื่อประสิทธิภาพ)
+            $jhcisDrugs = $this->getJHCISDrugs($tableName, '', 500, 0);
+            
+            // ดึงยาใน Drugmuk ทั้งหมดมาเตรียมเทียบ
+            $stmt = $this->db->query("SELECT id, name, code, generic_name FROM drugs");
+            $drugmukDrugs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // ดึงที่ map แล้วมาข้าม
+            $mapped = $this->getMappedDrugs();
+            
+            $suggestions = [];
+            foreach ($jhcisDrugs as $jhcis) {
+                // ข้ามถ้า map แล้ว
+                if (isset($mapped[$jhcis['drugcode']])) continue;
+                
+                $jhcisName = mb_strtolower(trim($jhcis['name']));
+                
+                foreach ($drugmukDrugs as $muk) {
+                    $mukName = mb_strtolower(trim($muk['name']));
+                    
+                    // 1. ตรวจสอบรหัสยาตรงกัน
+                    if ($jhcis['drugcode'] == $muk['code']) {
+                        $suggestions[] = [
+                            'jhcis_code' => $jhcis['drugcode'],
+                            'jhcis_name' => $jhcis['name'],
+                            'drugmuk_id' => $muk['id'],
+                            'drugmuk_name' => $muk['name'],
+                            'match_type' => 'CODE_EXACT',
+                            'confidence' => 1.0
+                        ];
+                        break;
+                    }
+                    
+                    // 2. ตรวจสอบชื่อตรงกันเป๊ะ
+                    if ($jhcisName == $mukName) {
+                        $suggestions[] = [
+                            'jhcis_code' => $jhcis['drugcode'],
+                            'jhcis_name' => $jhcis['name'],
+                            'drugmuk_id' => $muk['id'],
+                            'drugmuk_name' => $muk['name'],
+                            'match_type' => 'NAME_EXACT',
+                            'confidence' => 1.0
+                        ];
+                        break;
+                    }
+                    
+                    // 3. ตรวจสอบความคล้ายคลึงของชื่อ (เลือนลาง)
+                    similar_text($jhcisName, $mukName, $percent);
+                    if ($percent > 85) {
+                        $suggestions[] = [
+                            'jhcis_code' => $jhcis['drugcode'],
+                            'jhcis_name' => $jhcis['name'],
+                            'drugmuk_id' => $muk['id'],
+                            'drugmuk_name' => $muk['name'],
+                            'match_type' => 'NAME_SIMILAR',
+                            'confidence' => round($percent / 100, 2)
+                        ];
+                        break;
+                    }
+                }
+            }
+            
+            echo json_encode(['success' => true, 'suggestions' => $suggestions]);
+            
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
 }

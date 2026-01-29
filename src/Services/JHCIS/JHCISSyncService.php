@@ -241,14 +241,31 @@ class JHCISSyncService
                     ];
                 }
                 
-                // Find drug in Drugmuk
-                $drugStmt = $this->drugmukDb->prepare("SELECT id FROM drugs WHERE code = ?");
-                $drugStmt->execute([$record['drugcode']]);
-                $drug = $drugStmt->fetch();
+                // Find drug in Drugmuk - first check mapping table
+                $mappingStmt = $this->drugmukDb->prepare("
+                    SELECT drugmuk_drug_id 
+                    FROM jhcis_drug_mapping 
+                    WHERE jhcis_drug_code = ? AND (hospital_id = ? OR hospital_id IS NULL)
+                ");
+                $mappingStmt->execute([$record['drugcode'], $hospitalId]);
+                $mapping = $mappingStmt->fetch();
                 
-                if ($drug) {
+                $drugId = null;
+                if ($mapping) {
+                    $drugId = $mapping['drugmuk_drug_id'];
+                } else {
+                    // Fallback to direct code match in drugs table
+                    $drugStmt = $this->drugmukDb->prepare("SELECT id FROM drugs WHERE code = ?");
+                    $drugStmt->execute([$record['drugcode']]);
+                    $drug = $drugStmt->fetch();
+                    if ($drug) {
+                        $drugId = $drug['id'];
+                    }
+                }
+                
+                if ($drugId) {
                     $dispensingGroups[$vn]['items'][] = [
-                        'drug_id' => $drug['id'],
+                        'drug_id' => $drugId,
                         'quantity' => $record['qty'] ?: 1
                     ];
                 }

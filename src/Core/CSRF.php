@@ -60,9 +60,34 @@ class CSRF
             return $_POST['csrf_token'];
         }
 
+        // Check JSON input (for some AJAX requests)
+        $input = file_get_contents('php://input');
+        if (!empty($input)) {
+            $data = json_decode($input, true);
+            if (isset($data['csrf_token'])) {
+                return $data['csrf_token'];
+            }
+        }
+
         // Check headers (for AJAX requests)
-        if (isset($_SERVER['HTTP_X_CSRF_TOKEN'])) {
-            return $_SERVER['HTTP_X_CSRF_TOKEN'];
+        $headerKeys = [
+            'HTTP_X_CSRF_TOKEN',
+            'HTTP_X_XSRF_TOKEN',
+            'HTTP_CSRF_TOKEN'
+        ];
+
+        foreach ($headerKeys as $key) {
+            if (isset($_SERVER[$key]) && !empty($_SERVER[$key])) {
+                return $_SERVER[$key];
+            }
+        }
+
+        // Try getting all headers if on Apache/Nginx (works in some environments where $_SERVER is limited)
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            if (isset($headers['X-CSRF-TOKEN'])) return $headers['X-CSRF-TOKEN'];
+            if (isset($headers['X-CSRF-Token'])) return $headers['X-CSRF-Token'];
+            if (isset($headers['X-XSRF-TOKEN'])) return $headers['X-XSRF-TOKEN'];
         }
 
         // Check query string (not recommended, but supported)
@@ -84,7 +109,12 @@ class CSRF
         $token = self::getTokenFromRequest();
         
         if (!self::validateToken($token)) {
-            throw new \Exception('Invalid CSRF token', 403);
+            $sessionToken = $_SESSION['csrf_token'] ?? 'SESSION_TOKEN_NOT_SET';
+            $receivedToken = $token ?? 'RECEIVED_TOKEN_IS_NULL';
+            $msg = "!!! DEBUG CSRF !!! Received: [$receivedToken], Session: [$sessionToken]";
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $msg]);
+            die();
         }
 
         return true;

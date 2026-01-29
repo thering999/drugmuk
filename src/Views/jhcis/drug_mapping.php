@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drug Code Mapping - Drugmuk</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <style>
         * {
             margin: 0;
@@ -504,7 +505,7 @@
                 document.getElementById('stat-unmapped').textContent = data.unmapped || 0;
                 document.getElementById('stat-total').textContent = data.total || 0;
                 
-                const rate = data.total > 0 ? ((data.mapped / data.total) * 100).toFixed(1) : 0;
+                const rate = data.total > 0 ? Number((data.mapped / data.total) * 100).toFixed(1) : 0;
                 document.getElementById('stat-rate').textContent = rate + '%';
             } catch (error) {
                 console.error('Error loading stats:', error);
@@ -526,7 +527,7 @@
                             <td><strong>${mapping.jhcis_drug_code}</strong></td>
                             <td>${mapping.drug_name} (${mapping.drug_code})</td>
                             <td><span class="badge badge-${mapping.mapping_type}">${mapping.mapping_type}</span></td>
-                            <td>${(mapping.confidence_score * 100).toFixed(0)}%</td>
+                            <td>${Number(mapping.confidence_score * 100).toFixed(0)}%</td>
                             <td>${mapping.mapped_by_name || '-'}</td>
                             <td>${formatDate(mapping.mapped_at)}</td>
                             <td>
@@ -724,6 +725,25 @@
                 showAlert('เกิดข้อผิดพลาดในการลบ', 'error');
             }
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

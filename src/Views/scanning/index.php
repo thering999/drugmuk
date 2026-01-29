@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>สแกนบาร์โค้ด - Drugmuk</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <!-- Use specific version of html5-qrcode -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -291,6 +292,9 @@
     <audio id="successSound" src="https://cdn.freesound.org/previews/274/274181_5371556-lq.mp3"></audio>
 
     <script>
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
         let html5QrcodeScanner = null;
         let isScanning = false;
         let currentDrug = null;
@@ -403,8 +407,11 @@
             try {
                 const response = await fetch('/api/scan/lookup', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCSRFToken()
+                    },
+                    body: JSON.stringify({ code: code, csrf_token: getCSRFToken() })
                 });
                 const data = await response.json();
                 
@@ -508,8 +515,11 @@
             try {
                 const response = await fetch('/api/scan/batch', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: type, items: batchItems })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCSRFToken()
+                    },
+                    body: JSON.stringify({ type: type, items: batchItems, csrf_token: getCSRFToken() })
                 });
                 const res = await response.json();
                 

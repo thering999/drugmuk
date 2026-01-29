@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JHCIS Dashboard - Drugmuk</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .jhcis-dashboard {
@@ -199,10 +200,10 @@
                         <?php endif; ?>
 
                         <div class="action-buttons">
-                            <button onclick="testConnection(<?= $hospital['id'] ?>)" class="btn btn-primary">
+                            <button onclick="testConnection(event, <?= $hospital['id'] ?>)" class="btn btn-primary">
                                 🔍 Test Connection
                             </button>
-                            <button onclick="syncNow(<?= $hospital['id'] ?>)" class="btn btn-secondary">
+                            <button onclick="syncNow(event, <?= $hospital['id'] ?>)" class="btn btn-secondary">
                                 🔄 Sync Now
                             </button>
                         </div>
@@ -257,8 +258,13 @@
 
     <script>
         // Test JHCIS connection
-        async function testConnection(hospitalId) {
+        async function testConnection(event, hospitalId) {
             if (!confirm('ทดสอบการเชื่อมต่อ JHCIS?')) return;
+            
+            const btn = event.currentTarget;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ กำลังทดสอบ...';
             
             try {
                 const response = await fetch(`/api/jhcis/test-connection/${hospitalId}`);
@@ -282,14 +288,18 @@
                 }
             } catch (error) {
                 alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         }
         
         // Sync data now
-        async function syncNow(hospitalId) {
+        async function syncNow(event, hospitalId) {
             if (!confirm('ต้องการ Sync ข้อมูลจาก JHCIS ตอนนี้?\n(จะดึงข้อมูล 30 วันย้อนหลัง)')) return;
             
-            const btn = event.target;
+            const btn = event.currentTarget;
+            const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = '⏳ กำลัง Sync...';
             
@@ -309,7 +319,7 @@
                 alert('❌ เกิดข้อผิดพลาด: ' + error.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '🔄 Sync Now';
+                btn.textContent = originalText;
             }
         }
         
@@ -317,6 +327,28 @@
         setTimeout(() => {
             location.reload();
         }, 30000);
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                        
+                        // If body is FormData, we can't easily add to it without affecting the boundary
+                        // If body is JSON string, we should probably add it there too, but headers are usually enough
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Services\LineNotificationService;
 use PDO;
 
 /**
@@ -13,10 +14,12 @@ use PDO;
 class IntelligenceService
 {
     private $db;
+    private $lineService;
     
     public function __construct()
     {
         $this->db = Database::getInstance()->getConnection();
+        $this->lineService = new LineNotificationService();
     }
     
     /**
@@ -232,5 +235,18 @@ class IntelligenceService
             HAVING days_remaining <= 7
             ORDER BY days_remaining ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // Notify via LINE for critical shortages (Remaining < 3 days)
+        foreach ($results as $item) {
+            if ($item['days_remaining'] <= 3) {
+                $this->lineService->sendShortageAlert(
+                    $item['name'], 
+                    $item['current_stock'], 
+                    round($item['days_remaining'], 1)
+                );
+            }
+        }
+
+        return $results;
     }
 }

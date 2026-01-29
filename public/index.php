@@ -187,6 +187,8 @@ $router->post('/dmsic/api/send/{id}', 'DMSICController@send');
 // JHCIS DRUG LIST ROUTES
 $router->get('/jhcis-drugs', 'JHCISDrugListController@index');
 $router->get('/jhcis-drugs/export', 'JHCISDrugListController@export');
+$router->post('/jhcis-drugs/batch-price', 'JHCISDrugListController@batchUpdatePrice');
+$router->get('/jhcis-drugs/auto-mapping', 'JHCISDrugListController@suggestAutoMapping');
 
 // REPORT ROUTES
 $router->get('/reports', 'ReportController@index');
@@ -214,6 +216,29 @@ $router->post('/api/data-cleansing/detect-orphaned', 'DataCleansingController@de
 $router->post('/api/data-cleansing/merge-duplicates', 'DataCleansingController@mergeDuplicates');
 $router->post('/api/data-cleansing/mark-false-positive', 'DataCleansingController@markFalsePositive');
 $router->post('/api/data-cleansing/delete-orphaned', 'DataCleansingController@deleteOrphaned');
+$router->get('/api/data-cleansing/suggestion', 'DataCleansingController@getSuggestion');
+$router->post('/api/data-cleansing/update-drug', 'DataCleansingController@updateDrug');
+$router->get('/admin/data-cleansing/quality-reports', 'DataCleansingController@qualityReports');
+
+// NOTIFICATIONS & AUDIT TRAIL
+$router->get('/notifications', 'NotificationController@index');
+$router->get('/notifications/settings', 'NotificationController@settings');
+$router->get('/api/notifications/unread', 'NotificationController@getUnread');
+$router->post('/api/notifications/mark-read', 'NotificationController@markRead');
+$router->post('/api/notifications/save-settings', 'NotificationController@saveSettings');
+$router->post('/api/notifications/test-line', 'NotificationController@testLine');
+$router->get('/api/notifications/generate', 'NotificationController@generate');
+$router->get('/audit-trail', 'NotificationController@auditTrail');
+
+// EXPORT REPORTS
+$router->get('/export/quality-report', 'ExportController@qualityReport');
+$router->get('/export/audit-trail', 'ExportController@auditTrail');
+$router->get('/export/drugs', 'ExportController@drugs');
+
+// BULK EDIT
+$router->get('/admin/data-cleansing/bulk-edit', 'DataCleansingController@bulkEdit');
+$router->post('/api/data-cleansing/bulk-update', 'DataCleansingController@bulkUpdate');
+$router->post('/api/data-cleansing/bulk-delete', 'DataCleansingController@bulkDelete');
 
 $router->get('/realtime-sync', 'RealtimeSyncController@index');
 $router->get('/realtime-sync/stream', 'RealtimeSyncController@stream');
@@ -236,6 +261,8 @@ $router->post('/mock-data/generate', 'MockDataController@generate');
 
 // SYSTEM SETTINGS
 $router->get('/settings/database', 'SystemSettingsController@index');
+$router->post('/api/settings/update', 'SystemSettingsController@update');
+$router->post('/api/settings/test-connection', 'SystemSettingsController@testConnection');
 
 // HOSPITAL MANAGEMENT (Multi-JHCIS)
 $router->get('/admin/jhcis/hospitals', 'MultiJHCISController@index');
@@ -259,7 +286,9 @@ $router->post('/jhcis-drugs/import', 'JHCISDrugListController@import');
 $router->get('/jhcis-import', 'JHCISDataImportController@index');
 $router->post('/jhcis-import/process', 'JHCISDataImportController@process');
 $router->get('/jhcis-import/test-connection', 'JHCISDataImportController@testConnection');
+$router->get('/jhcis-import/statistics', 'JHCISDataImportController@getStatistics');
 $router->post('/jhcis-import/import-drugs', 'JHCISDataImportController@importDrugs');
+$router->post('/jhcis-import/bulk-import', 'JHCISDataImportController@bulkImportDrugs');
 $router->post('/jhcis-import/import-dispensing', 'JHCISDataImportController@importDispensing');
 
 // ENHANCED JHCIS API
@@ -340,6 +369,12 @@ $router->get('/api/safety/labs/{hn}', 'SafetyController@getLabs');
 
 // PHASE 4: LABEL ROUTES
 $router->get('/label/print/{dispense_id}/{item_id}', 'LabelController@printLabel');
+
+// PHASE 6: TELE-PHARMACY ROUTES
+$router->get('/tele-pharmacy/dashboard', 'TelepharmacyController@dashboard');
+$router->get('/tele-pharmacy/room', 'TelepharmacyController@room');
+$router->get('/tele-pharmacy/room/{hn}', 'TelepharmacyController@room');
+$router->post('/api/tele-pharmacy/save-notes', 'TelepharmacyController@saveSessionNotes');
 
 // RUN ROUTER
 $router->run();

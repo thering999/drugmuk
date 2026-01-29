@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>ตั้งค่าการเชื่อมต่อ - Drugmuk</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -231,7 +232,10 @@
                     <span>📊</span> แดชบอร์ด
                 </a>
                 <a href="/settings/database" class="nav-item active">
-                    <span>⚙️</span> ตั้งค่าฐานข้อมูล
+                    <span>⚙️</span> ตั้งค่าระบบ
+                </a>
+                <a href="/tele-pharmacy/dashboard" class="nav-item">
+                    <span>📹</span> Tele-pharmacy
                 </a>
                 <a href="/admin/jhcis/dashboard" class="nav-item">
                     <span>🏥</span> ระบบ JHCIS
@@ -253,6 +257,7 @@
                 <section class="card">
                     <h3><span>📦</span> ฐานข้อมูล Drugmuk (หลัก)</h3>
                     <form id="drugmukForm" onsubmit="saveDrugmuk(event)">
+                        <?php echo \App\Core\CSRF::field(); ?>
                         <div class="form-group">
                             <label>Host</label>
                             <input type="text" name="host" value="<?= htmlspecialchars($drugmukConfig['host']) ?>" required>
@@ -273,46 +278,90 @@
                             <label>Password</label>
                             <input type="password" name="password" value="<?= htmlspecialchars($drugmukConfig['password']) ?>">
                         </div>
-                        <button type="submit" class="btn btn-primary">💾 บันทึกการตั้งค่า</button>
+                        <div id="drugmukStatus" class="status-badge" style="display:none; margin-bottom: 15px; width: 100%; justify-content: center;"></div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn btn-primary" style="flex: 2;">💾 บันทึกการตั้งค่า</button>
+                            <button type="button" onclick="testDrugmukConnection()" class="btn btn-outline" style="flex: 1;">🔍 ทดสอบ</button>
+                        </div>
                     </form>
                 </section>
 
-                <!-- JHCIS Section -->
+                <!-- JHCIS Database Section (Moved) -->
                 <section class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h3 style="margin-bottom: 0;"><span>🏥</span> ฐานข้อมูล JHCIS (รพ.สต.)</h3>
-                        <button onclick="showAddModal()" class="btn btn-primary" style="width: auto; padding: 8px 16px;">+ เพิ่ม รพ.สต.</button>
-                    </div>
-                    <p style="font-size: 13px; color: var(--text-soft); margin-bottom: 20px;">
-                        จัดการการเชื่อมต่อกับรพ.สต. ต่างๆ ที่ต้องการ Sync ข้อมูล
-                    </p>
-                    
-                    <div class="hospital-list">
-                        <?php if (empty($jhcisHospitals)): ?>
-                            <div style="text-align: center; padding: 30px; color: var(--text-soft); border: 1px dashed #e2e8f0; border-radius: 12px;">
-                                <p>ยังไม่มีการเพิ่ม รพ.สต.</p>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($jhcisHospitals as $hospital): ?>
-                                <div class="hospital-item">
-                                    <div class="hospital-info">
-                                        <h4><?= htmlspecialchars($hospital['name']) ?> (<?= htmlspecialchars($hospital['code']) ?>)</h4>
-                                        <p><?= htmlspecialchars($hospital['db_host']) ?> • <?= htmlspecialchars($hospital['db_name']) ?></p>
-                                    </div>
-                                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                                        <div style="display: flex; gap: 5px;">
-                                            <button onclick='editHospital(<?= json_encode($hospital) ?>)' class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; width: auto;">📝 แก้ไข</button>
-                                            <button onclick="testConnection(<?= $hospital['id'] ?>)" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; width: auto; color: var(--primary);">⚡ ทดสอบ</button>
-                                            <button onclick="deleteHospital(<?= $hospital['id'] ?>, '<?= htmlspecialchars($hospital['name']) ?>')" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; width: auto; color: var(--danger); border-color: var(--danger);">🗑️ ลบ</button>
-                                        </div>
-                                        <span class="status-badge <?= $hospital['is_active'] ? 'status-online' : 'status-offline' ?>">
-                                            <?= $hospital['is_active'] ? 'พร้อมใช้งาน' : 'ปิดการใช้งาน' ?>
-                                        </span>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+                    <h3><span>🏥</span> ฐานข้อมูล JHCIS (ระบบ JHCIS)</h3>
+                    <form id="jhcisForm" onsubmit="saveSettings(event, 'jhcis')">
+                        <?php echo \App\Core\CSRF::field(); ?>
+                        <input type="hidden" name="type" value="jhcis">
+                        <div class="form-group">
+                            <label>Host</label>
+                            <input type="text" name="host" value="<?= htmlspecialchars($jhcisConfig['host'] ?? 'localhost') ?>" placeholder="localhost หรือ IP address">
+                        </div>
+                        <div class="form-group">
+                            <label>Port</label>
+                            <input type="text" name="port" value="<?= htmlspecialchars($jhcisConfig['port'] ?? '3333') ?>" placeholder="3306 หรือ 3333">
+                        </div>
+                        <div class="form-group">
+                            <label>Database Name</label>
+                            <input type="text" name="database" value="<?= htmlspecialchars($jhcisConfig['database'] ?? 'jhcisdb') ?>" placeholder="jhcisdb">
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="username" value="<?= htmlspecialchars($jhcisConfig['username'] ?? 'root') ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" name="password" value="<?= htmlspecialchars($jhcisConfig['password'] ?? '') ?>">
+                        </div>
+                        <div id="jhcisStatus" class="status-badge" style="display:none; margin-bottom: 15px; width: 100%; justify-content: center;"></div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn btn-primary" style="background:#10b981; flex: 2;">💾 บันทึกการตั้งค่า JHCIS</button>
+                            <button type="button" onclick="testJhcisSettingsConnection()" class="btn btn-outline" style="flex: 1;">🔍 ทดสอบ</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- LINE OA Section (New) -->
+                <section class="card">
+                    <h3><span>💬</span> LINE OA Integration (Phase 6)</h3>
+                    <form onsubmit="saveSettings(event, 'line')">
+                        <?php echo \App\Core\CSRF::field(); ?>
+                        <input type="hidden" name="type" value="line">
+                        <div class="form-group">
+                            <label>Channel Access Token</label>
+                            <input type="password" name="access_token" value="<?= htmlspecialchars($lineConfig['access_token']) ?>" placeholder="eyJh... (Long Lived Token)">
+                        </div>
+                        <div class="form-group">
+                            <label>Channel Secret</label>
+                            <input type="password" name="channel_secret" value="<?= htmlspecialchars($lineConfig['channel_secret']) ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Admin User ID (For Alerts)</label>
+                            <input type="text" name="admin_user_id" value="<?= htmlspecialchars($lineConfig['admin_user_id']) ?>" placeholder="U1234...">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="background:#06c755;">💾 บันทึกการตั้งค่า LINE</button>
+                    </form>
+                </section>
+
+                <!-- AI & Machine Learning Section (New) -->
+                <section class="card">
+                    <h3><span>🧠</span> AI & Intelligence (Phase 6)</h3>
+                    <form onsubmit="saveSettings(event, 'ai')">
+                        <?php echo \App\Core\CSRF::field(); ?>
+                        <input type="hidden" name="type" value="ai">
+                        <div class="form-group">
+                            <label>Python Binary Path</label>
+                            <input type="text" name="python_path" value="<?= htmlspecialchars($aiConfig['python_path']) ?>" placeholder="python3 or C:\Python39\python.exe">
+                        </div>
+                        <div class="form-group">
+                            <label>Forecasting Engine Model</label>
+                            <select name="forecasting_model" style="width:100%; padding:12px; border-radius:10px; border:1px solid #e2e8f0;">
+                                <option value="ENHANCED_EMA" <?= $aiConfig['forecasting_model'] == 'ENHANCED_EMA' ? 'selected' : '' ?>>Enhanced EMA (Smooth + Seasonal)</option>
+                                <option value="PROPHET" <?= $aiConfig['forecasting_model'] == 'PROPHET' ? 'selected' : '' ?>>Facebook Prophet (Advanced Time-Series)</option>
+                                <option value="LSTM" <?= $aiConfig['forecasting_model'] == 'LSTM' ? 'selected' : '' ?>>LSTM RNN (Deep Learning)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="background:#7c3aed;">💾 บันทึกการตั้งค่า AI</button>
+                    </form>
                 </section>
             </div>
         </main>
@@ -374,6 +423,14 @@
     </div>
 
     <script>
+        // Get CSRF token from form or meta tag
+        function getCSRFToken() {
+            const tokenInput = document.querySelector('input[name="csrf_token"]');
+            if (tokenInput) return tokenInput.value;
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            return metaTag ? metaTag.content : '';
+        }
+
         function showAddModal() {
             document.getElementById('modalTitle').innerText = '➕ เพิ่ม รพ.สต. ใหม่';
             document.getElementById('hospitalId').value = '';
@@ -399,16 +456,71 @@
             document.getElementById('hospitalModal').style.display = 'none';
         }
 
-        async function saveDrugmuk(event) {
-            // ... (keep existing)
+        async function saveSettings(event, type) {
             event.preventDefault();
             const form = event.target;
             const formData = new FormData(form);
+            formData.append('type', type);
+            
             try {
-                const response = await fetch('/api/settings/drugmuk', { method: 'POST', body: formData });
+                const response = await fetch('/api/settings/update', { 
+                    method: 'POST', 
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
+                    body: formData
+                });
                 const data = await response.json();
-                if (data.success) alert('✅ ' + data.message); else alert('❌ ' + data.message);
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    // ทริกเกอร์การทดสอบอัตโนมัติหลังบันทึก
+                    if (type === 'drugmuk') testDrugmukConnection();
+                    if (type === 'jhcis') testJhcisSettingsConnection();
+                } else alert('❌ ' + data.message);
             } catch (error) { alert('❌ ' + error.message); }
+        }
+
+        async function testConnectionAPI(formData, statusId) {
+            const statusDiv = document.getElementById(statusId);
+            statusDiv.style.display = 'flex';
+            statusDiv.className = 'status-badge';
+            statusDiv.innerHTML = '⏳ กำลังทดสอบ...';
+            statusDiv.style.backgroundColor = '#eef2ff';
+            statusDiv.style.color = '#4338ca';
+
+            try {
+                const response = await fetch('/api/settings/test-connection', { 
+                    method: 'POST', 
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.className = 'status-badge status-online';
+                    statusDiv.innerHTML = '✅ เชื่อมต่อสำเร็จ! (' + (data.latency || 0) + 'ms)';
+                } else {
+                    statusDiv.className = 'status-badge status-offline';
+                    statusDiv.innerHTML = '❌ เชื่อมต่อไม่สำเร็จ: ' + data.message;
+                }
+            } catch (error) {
+                statusDiv.className = 'status-badge status-offline';
+                statusDiv.innerHTML = '❌ เกิดข้อผิดพลาดทางเทคนิค';
+            }
+        }
+
+        function testDrugmukConnection() {
+            const form = document.getElementById('drugmukForm');
+            const formData = new FormData(form);
+            testConnectionAPI(formData, 'drugmukStatus');
+        }
+
+        function testJhcisSettingsConnection() {
+            const form = document.getElementById('jhcisForm');
+            const formData = new FormData(form);
+            testConnectionAPI(formData, 'jhcisStatus');
+        }
+
+        async function saveDrugmuk(event) {
+            saveSettings(event, 'drugmuk');
         }
 
         async function saveHospital(event) {
@@ -428,7 +540,11 @@
             formData.append('is_active', document.getElementById('hActive').value);
 
             try {
-                const response = await fetch(url, { method: 'POST', body: formData });
+                const response = await fetch(url, { 
+                    method: 'POST', 
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
+                    body: formData
+                });
                 const data = await response.json();
                 if (data.success) {
                     alert('✅ บันทึกสำเร็จ');
@@ -441,7 +557,10 @@
             try {
                 const response = await fetch('/api/jhcis/connection/test', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': getCSRFToken()
+                    },
                     body: 'hospital_id=' + id
                 });
                 const data = await response.json();
@@ -461,6 +580,7 @@
                 
                 const response = await fetch('/admin/jhcis/hospitals/delete', {
                     method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
                     body: formData
                 });
                 const data = await response.json();

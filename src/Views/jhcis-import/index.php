@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>Import ข้อมูลจาก JHCIS - Drugmuk</title>
     <style>
         * {
@@ -256,8 +257,18 @@
         <div class="card">
             <h2 style="margin-bottom: 20px;">📦 Import ข้อมูลยา</h2>
             <p style="margin-bottom: 20px; color: #666;">
-                ดึงข้อมูลยาจาก JHCIS มาใส่ในระบบ Drugmuk (จำกัด 1,000 รายการต่อครั้ง)
+                ดึงข้อมูลยาจาก JHCIS มาใส่ในระบบ Drugmuk
             </p>
+            
+            <div class="form-group">
+                <label>จำนวนรายการที่ต้องการดึง:</label>
+                <input type="number" id="drugLimit" value="1000" min="1" max="10000" step="100" 
+                       style="width: 200px;" placeholder="เช่น 1000">
+                <small style="display: block; margin-top: 5px; color: #666;">
+                    (ขั้นต่ำ 1 รายการ, สูงสุด 10,000 รายการ)
+                </small>
+            </div>
+            
             <button onclick="importDrugs()" class="btn btn-success" id="btnImportDrugs">
                 ⬇️ Import ข้อมูลยา
             </button>
@@ -270,7 +281,7 @@
         <div class="card">
             <h2 style="margin-bottom: 20px;">💊 Import ประวัติการจ่ายยา</h2>
             <p style="margin-bottom: 20px; color: #666;">
-                ดึงประวัติการจ่ายยาย้อนหลังจาก JHCIS (จำกัด 500 รายการต่อครั้ง)
+                ดึงประวัติการจ่ายยาย้อนหลังจาก JHCIS
             </p>
             
             <div class="form-group">
@@ -281,6 +292,15 @@
             <div class="form-group">
                 <label>วันที่สิ้นสุด:</label>
                 <input type="date" id="endDate" value="<?= date('Y-m-d') ?>">
+            </div>
+
+            <div class="form-group">
+                <label>จำนวนรายการที่ต้องการดึง:</label>
+                <input type="number" id="dispensingLimit" value="500" min="1" max="10000" step="100" 
+                       style="width: 200px;" placeholder="เช่น 500">
+                <small style="display: block; margin-top: 5px; color: #666;">
+                    (ขั้นต่ำ 1 รายการ, สูงสุด 10,000 รายการ)
+                </small>
             </div>
 
             <button onclick="importDispensing()" class="btn btn-success" id="btnImportDispensing">
@@ -295,6 +315,10 @@
     <script>
         let isConnected = false;
 
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
+
         // ทดสอบการเชื่อมต่อ
         async function testConnection() {
             const btn = document.getElementById('btnTest');
@@ -307,7 +331,9 @@
             helpDiv.style.display = 'none';
 
             try {
-                const response = await fetch('/jhcis-import/test-connection');
+                const response = await fetch('/jhcis-import/test-connection', {
+                    headers: { 'X-CSRF-TOKEN': getCSRFToken() }
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -348,7 +374,9 @@
         // โหลดสถิติ
         async function loadStatistics() {
             try {
-                const response = await fetch('/jhcis-import/statistics');
+                const response = await fetch('/jhcis-import/statistics', {
+                    headers: { 'X-CSRF-TOKEN': getCSRFToken() }
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -371,7 +399,15 @@
                 return;
             }
 
-            if (!confirm('ต้องการ Import ข้อมูลยาจาก JHCIS?')) {
+            const limit = parseInt(document.getElementById('drugLimit').value);
+            
+            // Validate limit
+            if (isNaN(limit) || limit < 1 || limit > 10000) {
+                showAlert('error', 'กรุณาระบุจำนวนรายการระหว่าง 1-10,000');
+                return;
+            }
+
+            if (!confirm(`ต้องการ Import ข้อมูลยาจาก JHCIS จำนวน ${limit.toLocaleString()} รายการ?`)) {
                 return;
             }
 
@@ -385,8 +421,17 @@
             progressBar.textContent = 'กำลัง Import...';
 
             try {
+                const params = new URLSearchParams();
+                params.append('limit', limit);
+                params.append('csrf_token', getCSRFToken());
+                
                 const response = await fetch('/jhcis-import/import-drugs', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-TOKEN': getCSRFToken() 
+                    },
+                    body: params
                 });
                 const data = await response.json();
 
@@ -423,13 +468,20 @@
 
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
+            const limit = parseInt(document.getElementById('dispensingLimit').value);
 
             if (!startDate || !endDate) {
                 showAlert('error', 'กรุณาเลือกวันที่');
                 return;
             }
 
-            if (!confirm(`ต้องการ Import ประวัติการจ่ายยาตั้งแต่ ${startDate} ถึง ${endDate}?`)) {
+            // Validate limit
+            if (isNaN(limit) || limit < 1 || limit > 10000) {
+                showAlert('error', 'กรุณาระบุจำนวนรายการระหว่าง 1-10,000');
+                return;
+            }
+
+            if (!confirm(`ต้องการ Import ประวัติการจ่ายยาตั้งแต่ ${startDate} ถึง ${endDate} จำนวน ${limit.toLocaleString()} รายการ?`)) {
                 return;
             }
 
@@ -443,13 +495,19 @@
             progressBar.textContent = 'กำลัง Import...';
 
             try {
-                const formData = new FormData();
-                formData.append('start_date', startDate);
-                formData.append('end_date', endDate);
+                const params = new URLSearchParams();
+                params.append('start_date', startDate);
+                params.append('end_date', endDate);
+                params.append('limit', limit);
+                params.append('csrf_token', getCSRFToken());
 
                 const response = await fetch('/jhcis-import/import-dispensing', {
                     method: 'POST',
-                    body: formData
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-TOKEN': getCSRFToken() 
+                    },
+                    body: params
                 });
                 const data = await response.json();
 

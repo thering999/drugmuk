@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ตั้งค่า JHCIS - Drugmuk</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -490,6 +491,25 @@
                 alertBox.style.display = 'none';
             }, 5000);
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

@@ -4,6 +4,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>จ่ายยา - <?= htmlspecialchars($subwarehouse['name']) ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -136,6 +137,9 @@
     </div>
 
     <script>
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
         function showDrugInfo() {
             const select = document.getElementById('drugSelect');
             const option = select.options[select.selectedIndex];
@@ -176,13 +180,17 @@
             try {
                 const res = await fetch('/api/subwarehouse/<?= $subwarehouse['code'] ?>/dispense', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCSRFToken()
+                    },
                     body: JSON.stringify({
                         drug_id: drugSelect.value,
                         quantity: quantity,
                         patient_name: document.getElementById('patientName').value,
                         patient_id: document.getElementById('patientId').value,
-                        notes: document.getElementById('notes').value
+                        notes: document.getElementById('notes').value,
+                        csrf_token: getCSRFToken()
                     })
                 });
                 

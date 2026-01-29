@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory Reconciliation - JHCIS</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .reconciliation-container {
@@ -202,7 +203,7 @@
                     <button class="btn btn-warning" onclick="generateAdjustments()">
                         📋 Generate Adjustments
                     </button>
-                    <button class="btn btn-success" onclick="applyAdjustments()" id="applyBtn" style="display: none;">
+                    <button class="btn btn-success" onclick="applyAdjustments(event)" id="applyBtn" style="display: none;">
                         ✅ Apply Adjustments
                     </button>
                 </div>
@@ -342,13 +343,18 @@
             alert(`Generated ${adjustments.length} adjustments. Click "Apply Adjustments" to proceed.`);
         }
 
-        async function applyAdjustments() {
+        async function applyAdjustments(event) {
             if (adjustments.length === 0) {
                 alert('No adjustments to apply');
                 return;
             }
 
             const requireApproval = confirm('Require approval for adjustments?\n\nYes = Pending approval\nNo = Apply immediately');
+
+            const btn = event.currentTarget;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing...';
 
             try {
                 const formData = new FormData();
@@ -373,8 +379,30 @@
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

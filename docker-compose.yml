@@ -13,9 +13,10 @@ services:
     depends_on:
       - php
       - db
-      - redis
+      - cache
     networks:
       - drugmuk_network
+    restart: always
 
   # PHP-FPM
   php:
@@ -28,29 +29,34 @@ services:
     env_file: .env
     networks:
       - drugmuk_network
+    restart: always
 
   # MySQL Database
   db:
     image: mysql:8.0
     container_name: drugmuk_db
+    command:
+      - --lower_case_table_names=1
+      - --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
+      MYSQL_DATABASE: ${DB_NAME:-drugmuk}
     ports:
-      - "${DB_PORT}:3306"
+      - "${DB_PORT:-3306}:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
     networks:
       - drugmuk_network
+    restart: always
 
-  # Redis Cache
-  redis:
+  # Redis Cache (Renamed to 'cache' to avoid naming conflicts)
+  cache:
     image: redis:7-alpine
     container_name: drugmuk_redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-drugmuk_redis_pass}" ]
     ports:
-      - "${REDIS_PORT}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -60,18 +66,20 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    restart: always
 
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: drugmuk_redis_commander
     environment:
-      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD}
+      - REDIS_HOSTS=local:cache:6379:0:${REDIS_PASSWORD:-drugmuk_redis_pass}
     ports:
       - "8081:8081"
     depends_on:
-      - redis
+      - cache
     networks:
       - drugmuk_network
+    restart: always
 
 volumes:
   db_data:

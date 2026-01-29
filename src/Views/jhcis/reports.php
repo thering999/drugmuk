@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JHCIS Reports - Drugmuk</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .reports-container {
@@ -351,15 +352,15 @@
                     <div class="metric-label">Total Syncs</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">${(report.overall.success_rate || 0).toFixed(1)}%</div>
+                    <div class="metric-value">${Number(report.overall.success_rate || 0).toFixed(1)}%</div>
                     <div class="metric-label">Success Rate</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">${(report.overall.total_records || 0).toLocaleString()}</div>
+                    <div class="metric-value">${Number(report.overall.total_records || 0).toLocaleString()}</div>
                     <div class="metric-label">Total Records</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">${(report.overall.avg_duration || 0).toFixed(1)}s</div>
+                    <div class="metric-value">${Number(report.overall.avg_duration || 0).toFixed(1)}s</div>
                     <div class="metric-label">Avg Duration</div>
                 </div>
             `;
@@ -376,7 +377,7 @@
                         <td>${(day.records || 0).toLocaleString()}</td>
                         <td style="color: #10b981;">${day.success || 0}</td>
                         <td style="color: #ef4444;">${day.failed || 0}</td>
-                        <td>${(day.avg_duration || 0).toFixed(1)}</td>
+                        <td>${Number(day.avg_duration || 0).toFixed(1)}</td>
                     </tr>
                 `;
             });
@@ -399,7 +400,7 @@
             tbody.innerHTML = '';
             const total = report.mapping_coverage.total_mapped || 1;
             (report.mapping_coverage.by_confidence || []).forEach(conf => {
-                const percent = ((conf.count / total) * 100).toFixed(1);
+                const percent = (Number(conf.count || 0) / total * 100).toFixed(1);
                 tbody.innerHTML += `
                     <tr>
                         <td>${conf.confidence_level}</td>
@@ -463,6 +464,25 @@
             
             window.location.href = `/admin/jhcis/export?type=${type}&hospital_id=${hospitalId}&from_date=${fromDate}&to_date=${toDate}`;
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

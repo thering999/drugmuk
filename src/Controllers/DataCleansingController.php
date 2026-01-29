@@ -30,6 +30,7 @@ class DataCleansingController
 
         // ตรวจสอบและสร้างตารางถ้ายังไม่มี
         $this->ensureTablesExist();
+        $this->migrateSchema();
 
         // ดึงสรุปคุณภาพข้อมูล
         $qualitySummary = $this->model->getDataQualitySummary();
@@ -37,6 +38,22 @@ class DataCleansingController
 
         // แสดงหน้า dashboard
         require_once __DIR__ . '/../Views/data_cleansing/index.php';
+    }
+
+    /**
+     * ตรวจสอบความถูกต้องของ schema และเพิ่มคอลัมน์ที่ขาดหาย
+     */
+    private function migrateSchema()
+    {
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $stmt = $db->query("SHOW COLUMNS FROM orphaned_records LIKE 'record_data'");
+            if ($stmt->rowCount() === 0) {
+                try {
+                    $db->exec("ALTER TABLE orphaned_records ADD COLUMN record_data TEXT AFTER reason");
+                } catch (\Exception $e) {}
+            }
+        } catch (\Exception $e) {}
     }
     
     /**
@@ -120,6 +137,7 @@ class DataCleansingController
                   `table_name` varchar(100) NOT NULL,
                   `record_id` int(11) NOT NULL,
                   `reason` text,
+                  `record_data` text,
                   `status` enum('pending','deleted','fixed','ignored') DEFAULT 'pending',
                   `detected_by` int(11) DEFAULT NULL,
                   `detected_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +178,7 @@ class DataCleansingController
             exit;
         }
 
+        $this->migrateSchema();
         $tableName = $_GET['table'] ?? null;
         $duplicates = $this->model->getPendingDuplicates($tableName);
 
@@ -176,6 +195,7 @@ class DataCleansingController
             exit;
         }
 
+        $this->migrateSchema();
         $tableName = $_GET['table'] ?? null;
         $orphanedRecords = $this->model->getPendingOrphanedRecords($tableName);
 
@@ -394,6 +414,46 @@ class DataCleansingController
             'history' => $history
         ]);
     }
+
+    /**
+     * ดึงคำแนะนำในการเช้าแก้ไข (AJAX)
+     */
+    public function getSuggestion()
+    {
+        header('Content-Type: application/json');
+        
+        $type = $_GET['type'] ?? '';
+        $id = $_GET['id'] ?? 0;
+        
+        $suggestion = $this->model->getSmartSuggestion($type, $id);
+        echo json_encode(['success' => true, 'suggestion' => $suggestion]);
+    }
+
+    /**
+     * อัพเดทข้อมูลยา (AJAX)
+     */
+    public function updateDrug()
+    {
+        header('Content-Type: application/json');
+        
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'กรุณา login']);
+            exit;
+        }
+
+        $drugId = $_POST['drug_id'] ?? null;
+        $orphanedId = $_POST['orphaned_id'] ?? null;
+        $updates = $_POST['updates'] ?? [];
+        $userId = $_SESSION['user_id'];
+
+        if (!$drugId || empty($updates)) {
+            echo json_encode(['success' => false, 'message' => 'ข้อมูลไม่ครบถ้วน']);
+            exit;
+        }
+
+        $result = $this->model->updateDrugData($drugId, $updates, $userId, $orphanedId);
+        echo json_encode($result);
+    }
     
     /**
      * หน้า Setup สำหรับสร้างตาราง
@@ -471,5 +531,163 @@ class DataCleansingController
             ], JSON_UNESCAPED_UNICODE);
         }
         exit;
+    }
+
+    /**
+     * หน้า Bulk Edit
+     */
+    public function bulkEdit()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: /login');
+            exit;
+        }
+
+        $db = \App\Core\Database::getInstance()->getConnection();
+
+        // ยาที่ไม่มีราคา
+        try {
+            $stmt = $db->query("
+                SELECT d.id, d.name, 
+                       (SELECT oi.unit_price FROM order_items oi 
+                        JOIN orders o ON oi.order_id = o.id 
+                        WHERE oi.drug_id = d.id ORDER BY o.order_date DESC LIMIT 1) as suggested_price
+                FROM drugs d 
+                WHERE d.price IS NULL OR d.price = 0
+                ORDER BY d.name LIMIT 100
+            ");
+            $drugsWithoutPrice = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            // Fallback: simple query without suggested price
+            $stmt = $db->query("SELECT id, name FROM drugs WHERE price IS NULL OR price = 0 ORDER BY name LIMIT 100");
+            $drugsWithoutPrice = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        }
+        $missingPriceCount = count($drugsWithoutPrice);
+
+        // ยาที่ไม่มีหน่วย
+        $stmt = $db->query("SELECT id, name FROM drugs WHERE unit IS NULL OR unit = '' ORDER BY name LIMIT 100");
+        $drugsWithoutUnit = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $missingUnitCount = count($drugsWithoutUnit);
+
+        // ยาที่ไม่มี min_stock
+        $stmt = $db->query("SELECT id, name FROM drugs WHERE min_stock IS NULL OR min_stock = 0 ORDER BY name LIMIT 100");
+        $drugsWithoutMinStock = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $missingMinStockCount = count($drugsWithoutMinStock);
+
+        // หน่วยที่ใช้บ่อย
+        $stmt = $db->query("SELECT unit, COUNT(*) as cnt FROM drugs WHERE unit IS NOT NULL GROUP BY unit ORDER BY cnt DESC LIMIT 10");
+        $commonUnits = array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'unit');
+
+        require_once __DIR__ . '/../Views/data_cleansing/bulk_edit.php';
+    }
+
+    /**
+     * Bulk Update (AJAX)
+     */
+    public function bulkUpdate()
+    {
+        header('Content-Type: application/json');
+
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'กรุณา login']);
+            exit;
+        }
+
+        $type = $_POST['type'] ?? '';
+        $drugIds = $_POST['drug_ids'] ?? [];
+        $userId = $_SESSION['user_id'];
+
+        if (empty($drugIds)) {
+            echo json_encode(['success' => false, 'message' => 'กรุณาเลือกรายการที่ต้องการแก้ไข']);
+            exit;
+        }
+
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $updated = 0;
+
+            foreach ($drugIds as $drugId) {
+                $drugId = (int)$drugId;
+                
+                if ($type === 'price') {
+                    $price = !empty($_POST['price']) ? (float)$_POST['price'] : null;
+                    if (!$price) {
+                        // ใช้ราคาแนะนำ
+                        try {
+                            $stmt = $db->prepare("SELECT unit_price FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.drug_id = ? ORDER BY o.order_date DESC LIMIT 1");
+                            $stmt->execute([$drugId]);
+                            $price = $stmt->fetchColumn() ?: 0;
+                        } catch (\Exception $e) {
+                            $price = 0;
+                        }
+                    }
+                    if ($price > 0) {
+                        $stmt = $db->prepare("UPDATE drugs SET price = ? WHERE id = ?");
+                        $stmt->execute([$price, $drugId]);
+                        $updated++;
+                    }
+                } elseif ($type === 'unit') {
+                    $unit = $_POST['unit'] ?? '';
+                    if ($unit) {
+                        $stmt = $db->prepare("UPDATE drugs SET unit = ? WHERE id = ?");
+                        $stmt->execute([$unit, $drugId]);
+                        $updated++;
+                    }
+                } elseif ($type === 'minstock') {
+                    $minStock = (int)($_POST['min_stock'] ?? 10);
+                    $stmt = $db->prepare("UPDATE drugs SET min_stock = ? WHERE id = ?");
+                    $stmt->execute([$minStock, $drugId]);
+                    $updated++;
+                }
+            }
+
+            // Log to audit trail
+            $audit = new \App\Models\AuditTrail();
+            $audit->log('drugs', 0, 'update', null, ['bulk_type' => $type, 'count' => $updated], $userId);
+
+            echo json_encode(['success' => true, 'message' => "อัพเดทสำเร็จ {$updated} รายการ", 'updated' => $updated]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Bulk Delete (AJAX)
+     */
+    public function bulkDelete()
+    {
+        header('Content-Type: application/json');
+
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'กรุณา login']);
+            exit;
+        }
+
+        $deleteType = $_POST['delete_type'] ?? '';
+        $userId = $_SESSION['user_id'];
+
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $deleted = 0;
+
+            if ($deleteType === 'orphaned') {
+                $stmt = $db->query("DELETE FROM orphaned_records WHERE status = 'ignored'");
+                $deleted = $stmt->rowCount();
+            } elseif ($deleteType === 'old_notifications') {
+                $stmt = $db->query("DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+                $deleted = $stmt->rowCount();
+            } elseif ($deleteType === 'old_audit') {
+                $stmt = $db->query("DELETE FROM audit_trail WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
+                $deleted = $stmt->rowCount();
+            }
+
+            // Log
+            $audit = new \App\Models\AuditTrail();
+            $audit->log('system', 0, 'delete', null, ['delete_type' => $deleteType, 'count' => $deleted], $userId);
+
+            echo json_encode(['success' => true, 'message' => "ลบสำเร็จ {$deleted} รายการ", 'deleted' => $deleted]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 }

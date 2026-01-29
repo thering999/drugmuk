@@ -660,4 +660,62 @@ class PatientService
         
         return $profile;
     }
+    
+    /**
+     * Get recent patients for tele-pharmacy dashboard
+     * 
+     * @param int $limit Number of patients to return
+     * @return array List of recent patients
+     */
+    public function getRecentPatients($limit = 10)
+    {
+        if (!$this->jhcisDb) {
+            return [];
+        }
+        
+        try {
+            // Get patients who have visited recently and have chronic diseases
+            $sql = "SELECT DISTINCT
+                        p.hn,
+                        p.pname,
+                        p.fname,
+                        p.lname,
+                        p.birth as birth_date,
+                        p.sex,
+                        CONCAT(p.pname, p.fname, ' ', p.lname) as full_name,
+                        CONCAT(p.fname, ' ', p.lname) as first_name,
+                        p.lname as last_name,
+                        TIMESTAMPDIFF(YEAR, p.birth, CURDATE()) as age,
+                        MAX(o.vstdate) as last_visit,
+                        GROUP_CONCAT(DISTINCT c.chronicname SEPARATOR ', ') as chronic_diseases
+                    FROM patient p
+                    LEFT JOIN opd o ON p.hn = o.hn
+                    LEFT JOIN chronic c ON p.hn = c.hn
+                    WHERE o.vstdate >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                    GROUP BY p.hn
+                    ORDER BY MAX(o.vstdate) DESC
+                    LIMIT :limit";
+            
+            $stmt = $this->jhcisDb->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            return $stmt->fetchAll();
+            
+        } catch (\PDOException $e) {
+            error_log("Error fetching recent patients: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Get patient by HN (alias for backward compatibility)
+     * 
+     * @param string $hn Hospital Number
+     * @return array|null Patient data
+     */
+    public function getPatientByHN($hn)
+    {
+        return $this->getPatientProfile($hn);
+    }
 }

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>จัดการ Orphaned Records - Drugmuk</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -108,7 +109,8 @@
                     <tbody>
                         <?php foreach ($orphanedRecords as $rec): ?>
                             <?php 
-                                $data = json_decode($rec['record_data'], true);
+                                $recordData = $rec['record_data'] ?? null;
+                                $data = $recordData ? json_decode($recordData, true) : [];
                                 $displayInfo = '';
                                 if (!empty($data)) {
                                     $cnt = 0;
@@ -128,7 +130,7 @@
                                 <td><?php echo $rec['record_id']; ?></td>
                                 <td><span class="badge"><?php echo htmlspecialchars($rec['table_name']); ?></span></td>
                                 <td style="font-size: 14px; color: #4b5563;"><?php echo $displayInfo; ?></td>
-                                <td style="color: #ef4444;"><?php echo htmlspecialchars($rec['orphaned_reason']); ?></td>
+                                <td style="color: #ef4444;"><?php echo htmlspecialchars($rec['reason'] ?? 'ไม่มีสาเหตุ'); ?></td>
                                 <td style="font-size: 13px; color: #6b7280;">
                                     <?php echo date('d/m/Y H:i', strtotime($rec['detected_at'])); ?>
                                 </td>
@@ -141,6 +143,10 @@
     </div>
 
     <script>
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
+
         function toggleAll(source) {
             document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = source.checked);
             updateButton();
@@ -167,6 +173,7 @@
 
                 const response = await fetch('/api/data-cleansing/delete-orphaned', {
                     method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
                     body: formData
                 });
                 const data = await response.json();

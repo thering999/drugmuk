@@ -102,6 +102,13 @@ class JHCISDataImportController extends Controller {
         try {
             $this->connectJHCIS();
             
+            // รับค่า limit จาก POST request (ค่าเริ่มต้น 1000)
+            $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 1000;
+            
+            // จำกัดค่า limit ไม่ให้เกิน 10000 เพื่อป้องกันการโหลดมากเกินไป
+            if ($limit < 1) $limit = 1;
+            if ($limit > 10000) $limit = 10000;
+            
             // ตรวจสอบว่าคอลัมน์ต่างๆ ในตาราง cdrug ชื่ออะไร
             $columnsStmt = $this->jhcisDb->query("SHOW COLUMNS FROM cdrug");
             $columns = $columnsStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -154,7 +161,7 @@ class JHCISDataImportController extends Controller {
                       AND cdrug.drugname IS NOT NULL
                       AND cdrug.drugname != ''
                     ORDER BY cdrug.drugname
-                    LIMIT 1000"; // จำกัด 1000 รายการต่อครั้ง
+                    LIMIT $limit";
             
             $stmt = $this->jhcisDb->query($sql);
             $jhcisDrugs = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -361,6 +368,13 @@ class JHCISDataImportController extends Controller {
             $startDate = $_POST['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
             $endDate = $_POST['end_date'] ?? date('Y-m-d');
             
+            // รับค่า limit จาก POST request (ค่าเริ่มต้น 500)
+            $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 500;
+            
+            // จำกัดค่า limit ไม่ให้เกิน 10000 เพื่อป้องกันการโหลดมากเกินไป
+            if ($limit < 1) $limit = 1;
+            if ($limit > 10000) $limit = 10000;
+            
             // ตรวจสอบว่าตาราง visitdrug มีคอลัมน์อะไรบ้าง
             $columnsStmt = $this->jhcisDb->query("SHOW COLUMNS FROM visitdrug");
             $columns = $columnsStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -402,7 +416,7 @@ class JHCISDataImportController extends Controller {
                     INNER JOIN cdrug d ON v.drugcode = d.drugcode
                     WHERE v.$dateCol BETWEEN ? AND ?
                     ORDER BY v.$dateCol DESC
-                    LIMIT 500";
+                    LIMIT $limit";
             
             $stmt = $this->jhcisDb->prepare($sql);
             $stmt->execute([$startDate, $endDate]);

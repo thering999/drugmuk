@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>จัดการข้อมูลซ้ำ - Drugmuk</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -188,6 +189,10 @@
     </div>
 
     <script>
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        }
+
         function selectKeep(duplicateId, keepId, removeId, side) {
             // Update UI
             document.querySelectorAll(`#duplicate-${duplicateId} .record-card`).forEach(el => {
@@ -218,6 +223,7 @@
 
                 const response = await fetch('/api/data-cleansing/merge-duplicates', {
                     method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
                     body: formData
                 });
                 const data = await response.json();
@@ -248,6 +254,7 @@
 
                 const response = await fetch('/api/data-cleansing/mark-false-positive', {
                     method: 'POST',
+                    headers: { 'X-CSRF-Token': getCSRFToken() },
                     body: formData
                 });
                 const data = await response.json();

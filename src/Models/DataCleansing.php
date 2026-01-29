@@ -129,9 +129,12 @@ class DataCleansing
             foreach ($orphaned as $record) {
                 $insertSql = "
                     INSERT INTO orphaned_records (
-                        table_name, record_id, reason, detected_by, status
-                    ) VALUES (?, ?, ?, ?, 'pending')
-                    ON DUPLICATE KEY UPDATE detected_at = NOW()
+                        table_name, record_id, reason, record_data, detected_by, status
+                    ) VALUES (?, ?, ?, ?, ?, 'pending')
+                    ON DUPLICATE KEY UPDATE 
+                        detected_at = NOW(),
+                        record_data = VALUES(record_data),
+                        reason = VALUES(reason)
                 ";
                 
                 $insertStmt = $this->pdo->prepare($insertSql);
@@ -139,6 +142,7 @@ class DataCleansing
                     'transactions',
                     $record['id'],
                     'ไม่พบ drug_id: ' . $record['drug_id'],
+                    json_encode($record),
                     $userId
                 ]);
                 
@@ -186,9 +190,12 @@ class DataCleansing
             foreach ($orphaned as $record) {
                 $insertSql = "
                     INSERT INTO orphaned_records (
-                        table_name, record_id, reason, detected_by, status
-                    ) VALUES (?, ?, ?, ?, 'pending')
-                    ON DUPLICATE KEY UPDATE detected_at = NOW()
+                        table_name, record_id, reason, record_data, detected_by, status
+                    ) VALUES (?, ?, ?, ?, ?, 'pending')
+                    ON DUPLICATE KEY UPDATE 
+                        detected_at = NOW(),
+                        record_data = VALUES(record_data),
+                        reason = VALUES(reason)
                 ";
                 
                 $insertStmt = $this->pdo->prepare($insertSql);
@@ -196,6 +203,7 @@ class DataCleansing
                     'order_items',
                     $record['id'],
                     'ไม่พบ order_id: ' . $record['order_id'],
+                    json_encode($record),
                     $userId
                 ]);
                 
@@ -637,11 +645,125 @@ class DataCleansing
         
         // ตรวจหา orphaned order items
         $results['orphaned_order_items'] = $this->detectOrphanedOrderItems($userId);
+
+        // ตรวจหาสินค้าที่ราคาผิดปกติ
+        $results['invalid_prices'] = $this->detectInvalidPrices($userId);
+
+        // ตรวจหาข้อมูลที่ขาดหาย
+        $results['missing_data'] = $this->detectMissingData($userId);
         
         // คำนวณคะแนนคุณภาพ
         $results['quality_scores'] = $this->getDataQualityScore();
         
         return $results;
+    }
+
+    /**
+     * ตรวจหาสินค้าที่ราคาเป็น 0 หรือผิดปกติ
+     */
+    public function detectInvalidPrices($userId)
+    {
+        try {
+            $sql = "
+                SELECT id, name, price, code
+                FROM drugs
+                WHERE price <= 0 OR price > 100000
+                LIMIT 100
+            ";
+            
+            $stmt = $this->pdo->query($sql);
+            $invalid = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $insertedCount = 0;
+            foreach ($invalid as $record) {
+                $insertSql = "
+                    INSERT INTO orphaned_records (
+                        table_name, record_id, reason, record_data, detected_by, status
+                    ) VALUES (?, ?, ?, ?, ?, 'pending')
+                    ON DUPLICATE KEY UPDATE 
+                        detected_at = NOW(),
+                        record_data = VALUES(record_data),
+                        reason = VALUES(reason)
+                ";
+                
+                $insertStmt = $this->pdo->prepare($insertSql);
+                $insertStmt->execute([
+                    'drugs',
+                    $record['id'],
+                    'ราคาผิดปกติ: ' . $record['price'] . ' บาท',
+                    json_encode($record),
+                    $userId
+                ]);
+                
+                if ($insertStmt->rowCount() > 0) {
+                    $insertedCount++;
+                }
+            }
+            
+            return [
+                'success' => true,
+                'found' => $insertedCount,
+                'message' => 'พบรายการที่ราคาผิดปกติ ' . $insertedCount . ' รายการ'
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * ตรวจหาข้อมูลที่ขาดหาย (เช่น หน่วยนับ หรือ รหัส)
+     */
+    public function detectMissingData($userId)
+    {
+        try {
+            $sql = "
+                SELECT id, name, code, unit
+                FROM drugs
+                WHERE unit IS NULL OR unit = '' OR code IS NULL OR code = ''
+                LIMIT 100
+            ";
+            
+            $stmt = $this->pdo->query($sql);
+            $missing = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $insertedCount = 0;
+            foreach ($missing as $record) {
+                $reason = [];
+                if (empty($record['unit'])) $reason[] = 'ขาดหน่วยนับ';
+                if (empty($record['code'])) $reason[] = 'ขาดรหัสยา';
+
+                $insertSql = "
+                    INSERT INTO orphaned_records (
+                        table_name, record_id, reason, record_data, detected_by, status
+                    ) VALUES (?, ?, ?, ?, ?, 'pending')
+                    ON DUPLICATE KEY UPDATE 
+                        detected_at = NOW(),
+                        record_data = VALUES(record_data),
+                        reason = VALUES(reason)
+                ";
+                
+                $insertStmt = $this->pdo->prepare($insertSql);
+                $insertStmt->execute([
+                    'drugs',
+                    $record['id'],
+                    implode(', ', $reason),
+                    json_encode($record),
+                    $userId
+                ]);
+                
+                if ($insertStmt->rowCount() > 0) {
+                    $insertedCount++;
+                }
+            }
+            
+            return [
+                'success' => true,
+                'found' => $insertedCount,
+                'message' => 'พบรายการที่ข้อมูลไม่ครบถ้วน ' . $insertedCount . ' รายการ'
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     /**
@@ -688,6 +810,99 @@ class DataCleansing
      * @param int $days จำนวนวันย้อนหลัง
      * @return array
      */
+    /**
+     * ดึงข้อเสนอแนะในการแก้ไขข้อมูล (เช่น ราคาล่าสุด)
+     */
+    public function getSmartSuggestion($type, $recordId)
+    {
+        try {
+            if ($type === 'price') {
+                // หาราคาล่าสุดจากใบสั่งซื้อ
+                $sql = "
+                    SELECT price_per_unit as suggested_price, order_date
+                    FROM order_items oi
+                    JOIN orders o ON oi.order_id = o.id
+                    WHERE oi.drug_id = ?
+                    ORDER BY o.order_date DESC
+                    LIMIT 1
+                ";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute([$recordId]);
+                return $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+            
+            if ($type === 'unit') {
+                // หาหน่วยที่ใช้บ่อยที่สุด
+                $sql = "
+                    SELECT unit as suggested_unit, COUNT(*) as frequency
+                    FROM drugs
+                    WHERE unit IS NOT NULL AND unit != ''
+                    GROUP BY unit
+                    ORDER BY frequency DESC
+                    LIMIT 5
+                ";
+                $stmt = $this->pdo->query($sql);
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            
+            return null;
+        } catch (PDOException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * อัพเดทข้อมูลยาโดยตรงจากระบบ Cleansing
+     */
+    public function updateDrugData($drugId, $data, $userId, $orphanedRecordId)
+    {
+        try {
+            $this->pdo->beginTransaction();
+
+            $fields = [];
+            $values = [];
+            foreach ($data as $key => $value) {
+                $fields[] = "`$key` = ?";
+                $values[] = $value;
+            }
+            $values[] = $drugId;
+
+            $sql = "UPDATE drugs SET " . implode(', ', $fields) . " WHERE id = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($values);
+
+            // อัพเดทสถานะใน orphaned_records
+            $stmt = $this->pdo->prepare("
+                UPDATE orphaned_records 
+                SET status = 'fixed', 
+                    resolved_by = ?, 
+                    resolved_at = NOW() 
+                WHERE id = ?
+            ");
+            $stmt->execute([$userId, $orphanedRecordId]);
+
+            // บันทึก history
+            $stmt = $this->pdo->prepare("
+                INSERT INTO cleanup_history (
+                    operation_type, table_name, records_affected, operation_details, performed_by
+                ) VALUES ('fix', 'drugs', 1, ?, ?)
+            ");
+            $stmt->execute([json_encode(['drug_id' => $drugId, 'updates' => $data]), $userId]);
+
+            $this->pdo->commit();
+            return ['success' => true, 'message' => 'แก้ไขข้อมูลสำเร็จ'];
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * ดึงข้อมูล Quality Trends ย้อนหลัง
+     * 
+     * @param int $days จำนวนวันย้อนหลัง
+     * @return array
+     */
     public function getQualityTrends($days = 30)
     {
         try {
@@ -695,7 +910,7 @@ class DataCleansing
                 SELECT 
                     DATE(created_at) as check_date,
                     COUNT(*) as total_checks,
-                    SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved_count
+                    SUM(CASE WHEN operation_type = 'fix' THEN records_affected ELSE 0 END) as resolved_count
                 FROM cleanup_history
                 WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
                 GROUP BY DATE(created_at)

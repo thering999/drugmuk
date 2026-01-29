@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto Drug Mapping - JHCIS</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .mapping-container {
@@ -214,7 +215,7 @@
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
                     <label for="selectAll" style="margin-left: 5px;">Select All</label>
                 </div>
-                <button class="btn btn-success" onclick="applyMappings()">
+                <button class="btn btn-success" onclick="applyMappings(event)">
                     ✅ Apply Selected Mappings
                 </button>
             </div>
@@ -283,7 +284,7 @@
             tbody.innerHTML = '';
 
             suggestions.forEach((suggestion, index) => {
-                const confidence = (suggestion.confidence * 100).toFixed(1);
+                const confidence = Number(suggestion.confidence * 100).toFixed(1);
                 const confidenceClass = confidence >= 90 ? 'confidence-high' : 
                                        confidence >= 70 ? 'confidence-medium' : 'confidence-low';
 
@@ -335,7 +336,7 @@
             }
         });
 
-        async function applyMappings() {
+        async function applyMappings(event) {
             const checkboxes = document.querySelectorAll('.suggestion-checkbox:checked');
             const selectedMappings = Array.from(checkboxes).map(cb => {
                 const index = cb.dataset.index;
@@ -350,6 +351,11 @@
             if (!confirm(`Apply ${selectedMappings.length} mappings?`)) {
                 return;
             }
+
+            const btn = event.currentTarget;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ Applying...';
 
             try {
                 const formData = new FormData();
@@ -371,8 +377,30 @@
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>

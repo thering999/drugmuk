@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sync Settings - JHCIS</title>
+    <?= \App\Core\CSRF::metaTag() ?>
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .settings-container {
@@ -399,6 +400,25 @@
             badge.textContent = enabled ? 'Enabled' : 'Disabled';
             badge.className = 'status-badge ' + (enabled ? 'status-enabled' : 'status-disabled');
         }
+    </script>
+    <script>
+        // Auto-include CSRF token in all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (csrfToken) {
+                // Fetch API
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    const method = (options.method || 'GET').toUpperCase();
+                    if (method !== 'GET') {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    return originalFetch(url, options);
+                };
+            }
+        });
     </script>
 </body>
 </html>
