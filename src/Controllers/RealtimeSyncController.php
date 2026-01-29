@@ -103,14 +103,23 @@ class RealtimeSyncController
                     change_type VARCHAR(50) DEFAULT 'dispensing',
                     record_id INT NOT NULL,
                     direction ENUM('to_jhcis', 'from_jhcis') NOT NULL,
-                    status VARCHAR(20) DEFAULT 'synced',
+                    status VARCHAR(50) DEFAULT 'synced',
                     details JSON,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_created (created_at)
                 )
             ");
+            
+            // Update existing column if it's too restrictive
+            $this->db->exec("
+                ALTER TABLE sync_changes 
+                MODIFY COLUMN status VARCHAR(50) DEFAULT 'synced'
+            ");
         } catch (\PDOException $e) {
-            error_log("Error creating sync_changes table: " . $e->getMessage());
+            // Ignore alter errors if column already matches
+            if (strpos($e->getMessage(), 'Duplicate column') === false) {
+                error_log("Error with sync_changes table: " . $e->getMessage());
+            }
         }
     }
 
