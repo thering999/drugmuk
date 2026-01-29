@@ -1,24 +1,36 @@
 <?php
-<<<<<<< HEAD
 
 namespace App\Controllers;
 
+use App\Core\Database;
 use App\Models\Notification;
 use App\Models\AuditTrail;
+use App\Models\Inventory;
+use App\Models\Contract;
+use PDO;
 
 /**
  * Notification Controller
- * จัดการการแจ้งเตือน
+ * จัดการการแจ้งเตือนทั้งหมด
+ * 
+ * @package Drugmuk
+ * @version 3.5.0
  */
 class NotificationController
 {
+    private $db;
     private $notificationModel;
     private $auditModel;
+    private $inventoryModel;
+    private $contractModel;
 
     public function __construct()
     {
+        $this->db = Database::getInstance()->getConnection();
         $this->notificationModel = new Notification();
         $this->auditModel = new AuditTrail();
+        $this->inventoryModel = new Inventory();
+        $this->contractModel = new Contract();
     }
 
     /**
@@ -39,42 +51,11 @@ class NotificationController
         require_once __DIR__ . '/../Views/notifications/index.php';
     }
 
-=======
-/**
- * Notification Controller
- * จัดการการแจ้งเตือนทั้งหมด
- * 
- * @package Drugmuk
- * @version 3.4.0
- */
-
-namespace App\Controllers;
-
-use App\Core\Controller;
-use App\Services\LineNotifyService;
-use App\Models\Inventory;
-use App\Models\Contract;
-
-class NotificationController extends Controller
-{
-    private LineNotifyService $lineService;
-    private Inventory $inventoryModel;
-    private Contract $contractModel;
-    
-    public function __construct()
-    {
-        $this->lineService = new LineNotifyService();
-        $this->inventoryModel = new Inventory();
-        $this->contractModel = new Contract();
-    }
-    
->>>>>>> ec38baebc54407631f0440219d7ef94546b3ea7a
     /**
      * หน้าตั้งค่าการแจ้งเตือน
      */
     public function settings()
     {
-<<<<<<< HEAD
         if (!isset($_SESSION['user_id'])) {
             header('Location: /login');
             exit;
@@ -82,6 +63,7 @@ class NotificationController extends Controller
 
         $userId = $_SESSION['user_id'];
         $settings = $this->notificationModel->getSettings($userId);
+        $isLineConnected = $this->validateLineToken();
 
         require_once __DIR__ . '/../Views/notifications/settings.php';
     }
@@ -150,10 +132,17 @@ class NotificationController extends Controller
             'notify_expiring' => isset($_POST['notify_expiring']) ? 1 : 0,
             'notify_data_quality' => isset($_POST['notify_data_quality']) ? 1 : 0,
             'notify_orders' => isset($_POST['notify_orders']) ? 1 : 0,
+            'notify_contracts' => isset($_POST['notify_contracts']) ? 1 : 0,
+            'notify_receive' => isset($_POST['notify_receive']) ? 1 : 0,
+            'notify_allergy' => isset($_POST['notify_allergy']) ? 1 : 0,
             'email_enabled' => isset($_POST['email_enabled']) ? 1 : 0,
             'email_address' => $_POST['email_address'] ?? null,
             'line_enabled' => isset($_POST['line_enabled']) ? 1 : 0,
-            'line_token' => $_POST['line_token'] ?? null
+            'line_token' => $_POST['line_token'] ?? null,
+            'daily_summary' => isset($_POST['daily_summary']) ? 1 : 0,
+            'daily_summary_time' => $_POST['daily_summary_time'] ?? '08:00',
+            'low_stock_threshold' => (int)($_POST['low_stock_threshold'] ?? 20),
+            'expiring_days' => (int)($_POST['expiring_days'] ?? 90)
         ];
 
         $result = $this->notificationModel->saveSettings($userId, $data);
@@ -181,58 +170,12 @@ class NotificationController extends Controller
     }
 
     /**
-     * ทดสอบส่ง LINE
-=======
-        $settings = $this->getNotificationSettings();
-        $isLineConnected = $this->lineService->validateToken();
-        
-        $this->view('notifications/settings', [
-            'settings' => $settings,
-            'is_line_connected' => $isLineConnected
-        ]);
-    }
-    
-    /**
-     * บันทึกการตั้งค่า
-     */
-    public function saveSettings()
-    {
-        $this->validateCSRF();
-        
-        $settings = [
-            'line_notify_token' => $_POST['line_notify_token'] ?? '',
-            'notify_low_stock' => isset($_POST['notify_low_stock']) ? 1 : 0,
-            'notify_expiring' => isset($_POST['notify_expiring']) ? 1 : 0,
-            'notify_contracts' => isset($_POST['notify_contracts']) ? 1 : 0,
-            'notify_receive' => isset($_POST['notify_receive']) ? 1 : 0,
-            'notify_allergy' => isset($_POST['notify_allergy']) ? 1 : 0,
-            'daily_summary' => isset($_POST['daily_summary']) ? 1 : 0,
-            'daily_summary_time' => $_POST['daily_summary_time'] ?? '08:00',
-            'low_stock_threshold' => (int)($_POST['low_stock_threshold'] ?? 20),
-            'expiring_days' => (int)($_POST['expiring_days'] ?? 90)
-        ];
-        
-        $this->saveNotificationSettings($settings);
-        
-        // Update .env file with LINE token
-        if (!empty($settings['line_notify_token'])) {
-            $this->updateEnvValue('LINE_NOTIFY_TOKEN', $settings['line_notify_token']);
-        }
-        
-        $_SESSION['success'] = 'บันทึกการตั้งค่าการแจ้งเตือนสำเร็จ';
-        header('Location: /notifications/settings');
-        exit;
-    }
-    
-    /**
      * ทดสอบส่ง LINE Notify
->>>>>>> ec38baebc54407631f0440219d7ef94546b3ea7a
      */
     public function testLine()
     {
         header('Content-Type: application/json');
         
-<<<<<<< HEAD
         if (!isset($_SESSION['user_id'])) {
             echo json_encode(['success' => false, 'message' => 'Unauthorized']);
             exit;
@@ -282,19 +225,8 @@ class NotificationController extends Controller
         $topUsers = $this->auditModel->getTopUsers(5, 30);
 
         require_once __DIR__ . '/../Views/notifications/audit_trail.php';
-=======
-        $token = $_POST['token'] ?? '';
-        if (empty($token)) {
-            echo json_encode(['success' => false, 'error' => 'กรุณาใส่ LINE Notify Token']);
-            return;
-        }
-        
-        $service = new LineNotifyService($token);
-        $result = $service->send("\n🔔 ทดสอบการเชื่อมต่อ LINE Notify\n━━━━━━━━━━━━━━━\n✅ เชื่อมต่อสำเร็จ!\n🏥 ระบบ Drugmuk\n📅 " . date('d/m/Y H:i:s'));
-        
-        echo json_encode($result);
     }
-    
+
     /**
      * ส่งการแจ้งเตือนทันที (Manual trigger)
      */
@@ -302,30 +234,35 @@ class NotificationController extends Controller
     {
         header('Content-Type: application/json');
         
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+
         $type = $_POST['type'] ?? '';
+        $settings = $this->getNotificationSettings();
         $results = [];
         
         switch ($type) {
             case 'low_stock':
                 $items = $this->inventoryModel->getLowStockItems();
-                $results = $this->lineService->notifyLowStock($items);
+                $results = $this->sendLineNotification('low_stock', $items);
                 break;
                 
             case 'expiring':
-                $settings = $this->getNotificationSettings();
                 $days = $settings['expiring_days'] ?? 90;
                 $items = $this->inventoryModel->getExpiringItems($days);
-                $results = $this->lineService->notifyExpiringDrugs($items);
+                $results = $this->sendLineNotification('expiring', $items);
                 break;
                 
             case 'contracts':
                 $contracts = $this->contractModel->getExpiringContracts(30);
-                $results = $this->lineService->notifyExpiringContracts($contracts);
+                $results = $this->sendLineNotification('contracts', $contracts);
                 break;
                 
             case 'daily_summary':
                 $stats = $this->getDailyStats();
-                $results = $this->lineService->sendDailySummary($stats);
+                $results = $this->sendLineNotification('daily_summary', $stats);
                 break;
                 
             default:
@@ -335,7 +272,7 @@ class NotificationController extends Controller
         
         echo json_encode($results);
     }
-    
+
     /**
      * API: รับการแจ้งเตือนล่าสุด
      */
@@ -346,7 +283,7 @@ class NotificationController extends Controller
         $notifications = $this->getRecentNotifications(10);
         echo json_encode(['success' => true, 'data' => $notifications]);
     }
-    
+
     /**
      * Cron Job: ตรวจสอบและส่งการแจ้งเตือนอัตโนมัติ
      */
@@ -359,7 +296,7 @@ class NotificationController extends Controller
         if ($settings['notify_low_stock'] ?? false) {
             $items = $this->inventoryModel->getLowStockItems();
             if (!empty($items)) {
-                $results['low_stock'] = $this->lineService->notifyLowStock($items);
+                $results['low_stock'] = $this->sendLineNotification('low_stock', $items);
                 $this->logNotification('low_stock', count($items) . ' items');
             }
         }
@@ -369,7 +306,7 @@ class NotificationController extends Controller
             $days = $settings['expiring_days'] ?? 90;
             $items = $this->inventoryModel->getExpiringItems($days);
             if (!empty($items)) {
-                $results['expiring'] = $this->lineService->notifyExpiringDrugs($items);
+                $results['expiring'] = $this->sendLineNotification('expiring', $items);
                 $this->logNotification('expiring', count($items) . ' items');
             }
         }
@@ -378,7 +315,7 @@ class NotificationController extends Controller
         if ($settings['notify_contracts'] ?? false) {
             $contracts = $this->contractModel->getExpiringContracts(30);
             if (!empty($contracts)) {
-                $results['contracts'] = $this->lineService->notifyExpiringContracts($contracts);
+                $results['contracts'] = $this->sendLineNotification('contracts', $contracts);
                 $this->logNotification('contracts', count($contracts) . ' contracts');
             }
         }
@@ -391,7 +328,7 @@ class NotificationController extends Controller
             // Within 5 minutes of scheduled time
             if (abs(strtotime($currentTime) - strtotime($summaryTime)) < 300) {
                 $stats = $this->getDailyStats();
-                $results['daily_summary'] = $this->lineService->sendDailySummary($stats);
+                $results['daily_summary'] = $this->sendLineNotification('daily_summary', $stats);
                 $this->logNotification('daily_summary', 'sent');
             }
         }
@@ -403,7 +340,7 @@ class NotificationController extends Controller
             echo json_encode(['success' => true, 'results' => $results]);
         }
     }
-    
+
     // ===== Private Methods =====
     
     private function getNotificationSettings(): array
@@ -415,7 +352,7 @@ class NotificationController extends Controller
         return [];
     }
     
-    private function saveNotificationSettings(array $settings): void
+    private function saveNotificationSettingsToFile(array $settings): void
     {
         $file = __DIR__ . '/../../config/notifications.json';
         $dir = dirname($file);
@@ -425,22 +362,57 @@ class NotificationController extends Controller
         file_put_contents($file, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
     
-    private function updateEnvValue(string $key, string $value): void
+    private function validateLineToken(): bool
     {
-        $envFile = __DIR__ . '/../../.env';
-        if (!file_exists($envFile)) return;
+        $settings = $this->getNotificationSettings();
+        $token = $settings['line_token'] ?? '';
         
-        $content = file_get_contents($envFile);
-        $pattern = "/^{$key}=.*/m";
-        $replacement = "{$key}={$value}";
-        
-        if (preg_match($pattern, $content)) {
-            $content = preg_replace($pattern, $replacement, $content);
-        } else {
-            $content .= "\n{$replacement}";
+        if (empty($token)) {
+            return false;
         }
         
-        file_put_contents($envFile, $content);
+        // Simple validation - check if token format is correct
+        return strlen($token) > 10;
+    }
+    
+    private function sendLineNotification(string $type, $data): array
+    {
+        $settings = $this->getNotificationSettings();
+        $token = $settings['line_token'] ?? '';
+        
+        if (empty($token)) {
+            return ['success' => false, 'error' => 'LINE token not configured'];
+        }
+        
+        $message = $this->formatNotificationMessage($type, $data);
+        return $this->notificationModel->sendLine($token, $message);
+    }
+    
+    private function formatNotificationMessage(string $type, $data): string
+    {
+        switch ($type) {
+            case 'low_stock':
+                $count = is_array($data) ? count($data) : 0;
+                return "\n📦 แจ้งเตือนสต็อกต่ำ\n━━━━━━━━━━━━━\nพบยาสต็อกต่ำ {$count} รายการ\nกรุณาตรวจสอบและสั่งซื้อเพิ่มเติม";
+                
+            case 'expiring':
+                $count = is_array($data) ? count($data) : 0;
+                return "\n⏰ แจ้งเตือนยาใกล้หมดอายุ\n━━━━━━━━━━━━━\nพบยาใกล้หมดอายุ {$count} รายการ\nกรุณาตรวจสอบและจัดการ";
+                
+            case 'contracts':
+                $count = is_array($data) ? count($data) : 0;
+                return "\n📝 แจ้งเตือนสัญญาใกล้หมดอายุ\n━━━━━━━━━━━━━\nพบสัญญาใกล้หมดอายุ {$count} รายการ";
+                
+            case 'daily_summary':
+                return "\n📊 สรุปประจำวัน\n━━━━━━━━━━━━━\n" .
+                       "📦 จ่ายยา: " . ($data['dispensing_count'] ?? 0) . " ครั้ง\n" .
+                       "📥 รับยา: " . ($data['receive_count'] ?? 0) . " ครั้ง\n" .
+                       "🛒 สั่งซื้อ: " . ($data['order_count'] ?? 0) . " รายการ\n" .
+                       "⚠️ สต็อกต่ำ: " . ($data['low_stock_count'] ?? 0) . " รายการ";
+                
+            default:
+                return "\n🔔 การแจ้งเตือนจาก Drugmuk";
+        }
     }
     
     private function getDailyStats(): array
@@ -457,34 +429,46 @@ class NotificationController extends Controller
     
     private function getTodayDispensingCount(): int
     {
-        $db = \App\Core\Database::getInstance()->getConnection();
-        $sql = "SELECT COUNT(*) as count FROM dispensing WHERE DATE(dispense_date) = CURDATE()";
-        $result = $db->query($sql)->fetch();
-        return $result['count'] ?? 0;
+        try {
+            $sql = "SELECT COUNT(*) as count FROM dispensing WHERE DATE(dispense_date) = CURDATE()";
+            $result = $this->db->query($sql)->fetch();
+            return $result['count'] ?? 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     private function getTodayReceiveCount(): int
     {
-        $db = \App\Core\Database::getInstance()->getConnection();
-        $sql = "SELECT COUNT(*) as count FROM transactions WHERE transaction_type = 'receive' AND DATE(transaction_date) = CURDATE()";
-        $result = $db->query($sql)->fetch();
-        return $result['count'] ?? 0;
+        try {
+            $sql = "SELECT COUNT(*) as count FROM transactions WHERE transaction_type = 'receive' AND DATE(transaction_date) = CURDATE()";
+            $result = $this->db->query($sql)->fetch();
+            return $result['count'] ?? 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     private function getTodayOrderCount(): int
     {
-        $db = \App\Core\Database::getInstance()->getConnection();
-        $sql = "SELECT COUNT(*) as count FROM orders WHERE DATE(order_date) = CURDATE()";
-        $result = $db->query($sql)->fetch();
-        return $result['count'] ?? 0;
+        try {
+            $sql = "SELECT COUNT(*) as count FROM orders WHERE DATE(order_date) = CURDATE()";
+            $result = $this->db->query($sql)->fetch();
+            return $result['count'] ?? 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     private function getTotalInventoryValue(): float
     {
-        $db = \App\Core\Database::getInstance()->getConnection();
-        $sql = "SELECT COALESCE(SUM(quantity * cost_price), 0) as total FROM inventory WHERE quantity > 0";
-        $result = $db->query($sql)->fetch();
-        return (float)($result['total'] ?? 0);
+        try {
+            $sql = "SELECT COALESCE(SUM(quantity * cost_price), 0) as total FROM inventory WHERE quantity > 0";
+            $result = $this->db->query($sql)->fetch();
+            return (float)($result['total'] ?? 0);
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
     
     private function getRecentNotifications(int $limit = 10): array
@@ -513,15 +497,5 @@ class NotificationController extends Controller
         );
         
         file_put_contents($file, $log, FILE_APPEND);
-    }
-    
-    private function validateCSRF(): void
-    {
-        $token = $_POST['csrf_token'] ?? '';
-        if (!isset($_SESSION['csrf_token']) || $token !== $_SESSION['csrf_token']) {
-            http_response_code(403);
-            die('Invalid CSRF token');
-        }
->>>>>>> ec38baebc54407631f0440219d7ef94546b3ea7a
     }
 }
