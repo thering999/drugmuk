@@ -17,7 +17,9 @@
 
 ## 📋 สารบัญ
 
-- [ภาพรวมระบบ](#-ภาพรวมระบบ)
+- [Intelligence & AI Dashboard](#-intelligence--ai-dashboard-v3.6.0)
+- [JHCIS Integration](#-jhcis-integration)
+- [Notifications Setup](#-notifications-setup)
 - [Quick Start](#-quick-start-5-นาที)
 - [สถานะการพัฒนา](#-สถานะการพัฒนา)
 - [Features ทั้งหมด](#-features-ทั้งหมด)
@@ -48,6 +50,39 @@ Drugmuk เป็นระบบบริหารจัดการคลัง
 - ✅ **QR/Barcode Scanner** - สแกนบาร์โค้ดด้วยกล้อง
 - ✅ **Mobile PWA** - ติดตั้งเป็นแอปมือถือได้
 - ✅ **Production Ready** - ทดสอบครบ 170+ test cases, พร้อม deploy
+
+---
+
+## 🧠 Intelligence & AI Dashboard (v3.6.0)
+
+ศูนย์บัญชาการวิเคราะห์ข้อมูลอัจฉริยะ (Intelligence Center) ที่ช่วยให้เภสัชกรบริหารคลังยาได้อย่างแม่นยำด้วย AI
+
+### 📊 ฟีเจอร์เด่นในแพลตฟอร์มวิเคราะห์:
+*   **AI Predictive Out-of-Stock (7 Days)**: วิเคราะห์แนวโน้มการใช้งานและสต็อกกคงเหลือเพื่อแจ้งเตือนยากลุ่มเสี่ยงขาดสต็อกล่วงหน้า 7 วัน
+*   **JHCIS Real-Time Statistics**: ดึงข้อมูลสดจากฐานข้อมูล JHCIS (OPD Visit, Dispensing Today) มาแสดงผลบน Dashboard เพื่อการเปรียบเทียบข้อมูลที่แม่นยำ
+*   **Cost & Revenue Trends**: กราฟวิเคราะห์มูลค่าคลังยา (Inventory Value) และแนวโน้มรายรับ-รายจ่ายย้อนหลัง 6 เดือน
+*   **Demand Forecast Accuracy**: ระบบวัดความแม่นยำของโมเดล AI (MAPE) เพื่อการปรับปรุงแผนจัดซื้ออัตโนมัติ
+*   **Seasonal Usage Heatmap**: วิเคราะห์ยอดการใช้ยารายเดือนเพื่อตรวจจับ Peak Season (เช่น หน้าฝน ฤดูไข้หวัดใหญ่) จากข้อมูลจริง
+
+---
+
+## 🔗 JHCIS Integration
+
+Drugmuk ออกแบบมาเพื่อทำงานร่วมกับ JHCIS แบบแนบแน่นผ่านระบบเชื่อมต่อระดับฐานข้อมูล:
+
+1.  **Direct Database Connection**: เชื่อมต่อ JHCIS ผ่านไฟล์ `config/jhcis_config.json`
+2.  **Auto-Mapping Engine**: จับคู่ยา Drugmuk กับ JHCIS อัตโนมัติด้วยรหัส TMT (24 หลัก)
+3.  **Real-Time Dashboard**: ระบบสรุปยอด Diagnoses (ICD10) และการจ่ายยาที่เป็นที่นิยมที่สุดในแต่ละวันจาก JHCIS
+
+---
+
+## 🔔 Notifications Setup
+
+ยืดหยุ่นกว่าเดิมด้วยระบบแจ้งเตือนผ่านช่องทางสากล:
+
+*   **Discord Webhooks**: ส่งแจ้งเตือนยาใกล้หมดอายุ และยากลุ่มเสี่ยงเข้าสู่ Channel ใน Discord (ตั้งค่าผ่าน `config/notifications.json`)
+*   **Telegram Bot**: ติดตามสถานะคลังยาและรายงานด่วนผ่าน Telegram Bot API
+*   **Line Notify (Legacy)**: หากยังต้องการใช้งานระบบเดิม
 
 ---
 
