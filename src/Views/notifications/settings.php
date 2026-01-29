@@ -159,31 +159,79 @@
             </div>
 
             <div class="card">
-                <h2>💬 การแจ้งเตือนทาง LINE Notify</h2>
+                <h2>🎮 การแจ้งเตือนทาง Discord</h2>
+                <p style="font-size: 13px; color: #666; margin-bottom: 15px; padding: 10px; background: #f0f9ff; border-radius: 8px;">
+                    ✨ Discord Webhook ฟรี ง่าย และไม่ต้องใช้ Bot Token
+                </p>
                 
                 <div class="toggle-group">
                     <div>
-                        <div class="toggle-label">เปิดใช้งาน LINE Notify</div>
-                        <div class="toggle-desc">ส่งการแจ้งเตือนไปยัง LINE</div>
+                        <div class="toggle-label">เปิดใช้งาน Discord</div>
+                        <div class="toggle-desc">ส่งการแจ้งเตือนไปยัง Discord Channel</div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" name="line_enabled" id="line_enabled" <?php echo ($settings['line_enabled'] ?? 0) ? 'checked' : ''; ?>>
+                        <input type="checkbox" name="discord_enabled" id="discord_enabled" <?php echo !empty($settings['discord_webhook'] ?? '') ? 'checked' : ''; ?>>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
 
-                <div id="line_fields" style="<?php echo ($settings['line_enabled'] ?? 0) ? '' : 'display:none'; ?>">
+                <div id="discord_fields" style="<?php echo !empty($settings['discord_webhook'] ?? '') ? '' : 'display:none'; ?>">
                     <div class="form-group">
-                        <label>LINE Notify Token</label>
+                        <label>Discord Webhook URL</label>
                         <div style="display: flex; gap: 10px;">
-                            <input type="text" name="line_token" id="line_token" value="<?php echo htmlspecialchars($settings['line_token'] ?? ''); ?>" placeholder="ใส่ Token จาก notify-bot.line.me" style="flex:1">
-                            <button type="button" class="btn btn-test" onclick="testLine()">ทดสอบ</button>
+                            <input type="text" name="discord_webhook" id="discord_webhook" value="<?php echo htmlspecialchars($settings['discord_webhook'] ?? ''); ?>" placeholder="https://discord.com/api/webhooks/..." style="flex:1">
+                            <button type="button" class="btn btn-test" onclick="testDiscord()">ทดสอบ</button>
                         </div>
                     </div>
-                    <p style="font-size: 13px; color: #666;">
-                        สร้าง Token ได้ที่ <a href="https://notify-bot.line.me/" target="_blank" style="color: #667eea;">notify-bot.line.me</a>
-                    </p>
+                    <div style="font-size: 13px; color: #666; background: #f8f9fa; padding: 12px; border-radius: 8px; line-height: 1.6;">
+                        <strong>วิธีสร้าง Webhook:</strong><br>
+                        1. ไปที่ Discord Server → Channel Settings → Integrations<br>
+                        2. กด "Create Webhook" → ตั้งชื่อ → Copy Webhook URL<br>
+                        3. นำ URL มาใส่ในช่องด้านบน
+                    </div>
                 </div>
+            </div>
+
+            <div class="card">
+                <h2>📱 การแจ้งเตือนทาง Telegram</h2>
+                
+                <div class="toggle-group">
+                    <div>
+                        <div class="toggle-label">เปิดใช้งาน Telegram</div>
+                        <div class="toggle-desc">ส่งการแจ้งเตือนไปยัง Telegram Chat</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="telegram_enabled" id="telegram_enabled" <?php echo !empty($settings['telegram_bot_token'] ?? '') ? 'checked' : ''; ?>>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="telegram_fields" style="<?php echo !empty($settings['telegram_bot_token'] ?? '') ? '' : 'display:none'; ?>">
+                    <div class="form-group">
+                        <label>Bot Token</label>
+                        <input type="text" name="telegram_bot_token" id="telegram_bot_token" value="<?php echo htmlspecialchars($settings['telegram_bot_token'] ?? ''); ?>" placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ">
+                    </div>
+                    <div class="form-group">
+                        <label>Chat ID</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" name="telegram_chat_id" id="telegram_chat_id" value="<?php echo htmlspecialchars($settings['telegram_chat_id'] ?? ''); ?>" placeholder="-1001234567890" style="flex:1">
+                            <button type="button" class="btn btn-test" onclick="testTelegram()">ทดสอบ</button>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: #666; background: #f8f9fa; padding: 12px; border-radius: 8px; line-height: 1.6;">
+                        <strong>วิธีสร้าง Telegram Bot:</strong><br>
+                        1. ค้นหา @BotFather ใน Telegram → /newbot → ตั้งชื่อ<br>
+                        2. คัดลอก Token มาใส่ → เพิ่ม Bot เข้า Group/Channel<br>
+                        3. หา Chat ID โดยเปิด: api.telegram.org/bot<em>TOKEN</em>/getUpdates
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="background: #fef3c7; border: 1px solid #fcd34d;">
+                <h2 style="color: #92400e; border-bottom-color: #fcd34d;">⚠️ LINE Notify</h2>
+                <p style="color: #92400e;">
+                    LINE Notify ได้<strong>ยุติการให้บริการ</strong>แล้ว กรุณาใช้ Discord หรือ Telegram แทน
+                </p>
             </div>
 
             <div style="text-align: center; margin-top: 30px;">
@@ -201,8 +249,12 @@
             document.getElementById('email_field').style.display = this.checked ? 'block' : 'none';
         });
 
-        document.getElementById('line_enabled').addEventListener('change', function() {
-            document.getElementById('line_fields').style.display = this.checked ? 'block' : 'none';
+        document.getElementById('discord_enabled').addEventListener('change', function() {
+            document.getElementById('discord_fields').style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('telegram_enabled').addEventListener('change', function() {
+            document.getElementById('telegram_fields').style.display = this.checked ? 'block' : 'none';
         });
 
         document.getElementById('settingsForm').addEventListener('submit', async function(e) {
@@ -226,21 +278,50 @@
             }
         });
 
-        async function testLine() {
-            const token = document.getElementById('line_token').value;
-            if (!token) {
-                showAlert('error', 'กรุณาใส่ LINE Token');
+        async function testDiscord() {
+            const webhook = document.getElementById('discord_webhook').value;
+            if (!webhook) {
+                showAlert('error', 'กรุณาใส่ Discord Webhook URL');
                 return;
             }
 
+            showAlert('success', 'กำลังส่งข้อความทดสอบ...');
+
             try {
-                const response = await fetch('/api/notifications/test-line', {
+                const response = await fetch('/api/notifications/test-discord', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRF-Token': getCSRFToken()
                     },
-                    body: 'token=' + encodeURIComponent(token)
+                    body: 'webhook=' + encodeURIComponent(webhook)
+                });
+                const result = await response.json();
+                showAlert(result.success ? 'success' : 'error', result.message);
+            } catch (error) {
+                showAlert('error', 'เกิดข้อผิดพลาด');
+            }
+        }
+
+        async function testTelegram() {
+            const token = document.getElementById('telegram_bot_token').value;
+            const chatId = document.getElementById('telegram_chat_id').value;
+            
+            if (!token || !chatId) {
+                showAlert('error', 'กรุณาใส่ Bot Token และ Chat ID');
+                return;
+            }
+
+            showAlert('success', 'กำลังส่งข้อความทดสอบ...');
+
+            try {
+                const response = await fetch('/api/notifications/test-telegram', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': getCSRFToken()
+                    },
+                    body: 'token=' + encodeURIComponent(token) + '&chat_id=' + encodeURIComponent(chatId)
                 });
                 const result = await response.json();
                 showAlert(result.success ? 'success' : 'error', result.message);
@@ -257,3 +338,4 @@
     </script>
 </body>
 </html>
+

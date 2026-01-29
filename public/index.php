@@ -226,7 +226,8 @@ $router->get('/notifications/settings', 'NotificationController@settings');
 $router->get('/api/notifications/unread', 'NotificationController@getUnread');
 $router->post('/api/notifications/mark-read', 'NotificationController@markRead');
 $router->post('/api/notifications/save-settings', 'NotificationController@saveSettings');
-$router->post('/api/notifications/test-line', 'NotificationController@testLine');
+$router->post('/api/notifications/test-discord', 'NotificationController@testDiscord');
+$router->post('/api/notifications/test-telegram', 'NotificationController@testTelegram');
 $router->get('/api/notifications/generate', 'NotificationController@generate');
 $router->get('/audit-trail', 'NotificationController@auditTrail');
 

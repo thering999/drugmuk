@@ -680,46 +680,105 @@ class RealtimeSyncController
     }
 
     /**
-     * Send LINE Notification for sync errors
+     * Send Notification (Discord Webhook / Telegram Bot)
+     * LINE Notify ยุติการให้บริการแล้ว - เปลี่ยนไปใช้ Discord/Telegram แทน
      */
-    private function sendLineNotification($message)
+    private function sendNotification($message)
     {
         try {
-            // Load LINE token from config
             $configFile = __DIR__ . '/../../config/notifications.json';
             if (!file_exists($configFile)) {
-                return false;
+                return ['success' => false, 'error' => 'Config file not found'];
             }
 
             $config = json_decode(file_get_contents($configFile), true);
-            $token = $config['line_token'] ?? $config['line_notify_token'] ?? '';
+            $sent = false;
+            $method = 'none';
 
-            if (empty($token)) {
-                return false;
+            // Try Discord Webhook first
+            if (!empty($config['discord_webhook'])) {
+                $sent = $this->sendDiscordNotification($config['discord_webhook'], $message);
+                $method = 'Discord';
+            }
+            // Try Telegram Bot
+            elseif (!empty($config['telegram_bot_token']) && !empty($config['telegram_chat_id'])) {
+                $sent = $this->sendTelegramNotification(
+                    $config['telegram_bot_token'],
+                    $config['telegram_chat_id'],
+                    $message
+                );
+                $method = 'Telegram';
             }
 
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL => 'https://notify-api.line.me/api/notify',
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => http_build_query(['message' => $message]),
-                CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_SSL_VERIFYPEER => false
-            ]);
-            
-            $result = curl_exec($ch);
-            curl_close($ch);
-
-            return $result !== false;
+            return ['success' => $sent, 'method' => $method];
         } catch (\Exception $e) {
-            error_log("LINE Notification Error: " . $e->getMessage());
-            return false;
+            error_log("Notification Error: " . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     /**
-     * API: Send LINE notification for sync error (manual trigger)
+     * Send Discord Webhook Notification
+     */
+    private function sendDiscordNotification($webhookUrl, $message)
+    {
+        $payload = json_encode([
+            'content' => null,
+            'embeds' => [[
+                'title' => '🚨 Drugmuk Sync Alert',
+                'description' => $message,
+                'color' => 15158332, // Red
+                'timestamp' => date('c'),
+                'footer' => ['text' => 'Drugmuk System']
+            ]]
+        ]);
+
+        $ch = curl_init($webhookUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $httpCode >= 200 && $httpCode < 300;
+    }
+
+    /**
+     * Send Telegram Bot Notification
+     */
+    private function sendTelegramNotification($botToken, $chatId, $message)
+    {
+        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+        
+        $payload = [
+            'chat_id' => $chatId,
+            'text' => $message,
+            'parse_mode' => 'HTML'
+        ];
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $httpCode == 200;
+    }
+
+    /**
+     * API: Send notification for sync error (manual trigger)
      */
     public function notifyError()
     {
@@ -739,20 +798,33 @@ class RealtimeSyncController
             $errorCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
 
             if ($errorCount > 0) {
-                $message = "\n🚨 Drugmuk Sync Alert 🚨\n";
+                $message = "🚨 <b>Drugmuk Sync Alert</b> 🚨\n";
                 $message .= "━━━━━━━━━━━━━━━━\n";
-                $message .= "❌ พบ Sync Error วันนี้: {$errorCount} รายการ\n";
+                $message .= "❌ พบ Sync Error วันนี้: <b>{$errorCount}</b> รายการ\n";
                 $message .= "📅 " . date('d/m/Y H:i:s') . "\n";
                 $message .= "━━━━━━━━━━━━━━━━\n";
-                $message .= "กรุณาตรวจสอบที่ /realtime-sync";
+                $message .= "🔗 กรุณาตรวจสอบที่ /realtime-sync";
 
-                $sent = $this->sendLineNotification($message);
+                $result = $this->sendNotification($message);
 
-                echo json_encode([
-                    'success' => $sent,
-                    'message' => $sent ? 'ส่งการแจ้งเตือน LINE สำเร็จ' : 'ไม่สามารถส่ง LINE ได้ (ตรวจสอบ Token)',
-                    'error_count' => $errorCount
-                ], JSON_UNESCAPED_UNICODE);
+                if ($result['success']) {
+                    echo json_encode([
+                        'success' => true,
+                        'message' => "ส่งการแจ้งเตือนผ่าน {$result['method']} สำเร็จ",
+                        'error_count' => $errorCount,
+                        'method' => $result['method']
+                    ], JSON_UNESCAPED_UNICODE);
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'ยังไม่ได้ตั้งค่า Discord Webhook หรือ Telegram Bot',
+                        'error_count' => $errorCount,
+                        'setup_guide' => [
+                            'discord' => 'ใส่ discord_webhook ใน config/notifications.json',
+                            'telegram' => 'ใส่ telegram_bot_token และ telegram_chat_id ใน config/notifications.json'
+                        ]
+                    ], JSON_UNESCAPED_UNICODE);
+                }
             } else {
                 echo json_encode([
                     'success' => true,
@@ -767,3 +839,4 @@ class RealtimeSyncController
         exit;
     }
 }
+

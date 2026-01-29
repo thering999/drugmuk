@@ -170,9 +170,59 @@ class NotificationController
     }
 
     /**
-     * ทดสอบส่ง LINE Notify
+     * ทดสอบส่ง Discord Webhook
      */
-    public function testLine()
+    public function testDiscord()
+    {
+        header('Content-Type: application/json');
+        
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+
+        $webhook = $_POST['webhook'] ?? '';
+        if (empty($webhook)) {
+            echo json_encode(['success' => false, 'message' => 'ไม่ได้ระบุ Webhook URL']);
+            exit;
+        }
+
+        // Send test message to Discord
+        $payload = json_encode([
+            'content' => null,
+            'embeds' => [[
+                'title' => '🧪 ทดสอบการแจ้งเตือน',
+                'description' => "หากคุณเห็นข้อความนี้ แสดงว่าการตั้งค่า Discord Webhook ถูกต้อง ✅\n\n📅 " . date('d/m/Y H:i:s'),
+                'color' => 5763719, // Green
+                'footer' => ['text' => 'Drugmuk System']
+            ]]
+        ]);
+
+        $ch = curl_init($webhook);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            echo json_encode(['success' => true, 'message' => 'ส่งข้อความไป Discord สำเร็จ! ✅']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'ส่งไม่สำเร็จ (HTTP ' . $httpCode . ')']);
+        }
+        exit;
+    }
+
+    /**
+     * ทดสอบส่ง Telegram Bot
+     */
+    public function testTelegram()
     {
         header('Content-Type: application/json');
         
@@ -182,18 +232,42 @@ class NotificationController
         }
 
         $token = $_POST['token'] ?? '';
-        if (empty($token)) {
-            echo json_encode(['success' => false, 'message' => 'ไม่ได้ระบุ Token']);
+        $chatId = $_POST['chat_id'] ?? '';
+        
+        if (empty($token) || empty($chatId)) {
+            echo json_encode(['success' => false, 'message' => 'กรุณาระบุ Bot Token และ Chat ID']);
             exit;
         }
 
-        $result = $this->notificationModel->sendLine($token, "\n🧪 ทดสอบการแจ้งเตือนจาก Drugmuk\n\nหากคุณเห็นข้อความนี้ แสดงว่าการตั้งค่าถูกต้อง ✓");
+        // Send test message to Telegram
+        $url = "https://api.telegram.org/bot{$token}/sendMessage";
+        $message = "🧪 <b>ทดสอบการแจ้งเตือน</b>\n\nหากคุณเห็นข้อความนี้ แสดงว่าการตั้งค่า Telegram Bot ถูกต้อง ✅\n\n📅 " . date('d/m/Y H:i:s');
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'HTML'
+            ]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
         
-        if (isset($result['status']) && $result['status'] == 200) {
-            echo json_encode(['success' => true, 'message' => 'ส่งข้อความสำเร็จ']);
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $response = json_decode($result, true);
+
+        if ($httpCode == 200 && isset($response['ok']) && $response['ok']) {
+            echo json_encode(['success' => true, 'message' => 'ส่งข้อความไป Telegram สำเร็จ! ✅']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'ส่งไม่สำเร็จ: ' . ($result['message'] ?? 'Unknown error')]);
+            $errorMsg = $response['description'] ?? 'Unknown error';
+            echo json_encode(['success' => false, 'message' => 'ส่งไม่สำเร็จ: ' . $errorMsg]);
         }
+        exit;
     }
 
     /**

@@ -1,0 +1,19 @@
+{
+    "discord_webhook": "",
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "email_enabled": true,
+    "email_address": "habusaya@gmail.com",
+    "notify_low_stock": true,
+    "notify_expiring": true,
+    "notify_contracts": true,
+    "notify_receive": true,
+    "notify_allergy": true,
+    "notify_sync_errors": true,
+    "notify_data_quality": true,
+    "notify_orders": true,
+    "daily_summary": false,
+    "daily_summary_time": "08:00",
+    "low_stock_threshold": 20,
+    "expiring_days": 90
+}
