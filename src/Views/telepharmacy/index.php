@@ -259,11 +259,19 @@
 </style>
 
 <div class="tele-header">
-    <h1>
-        <i class="fas fa-video"></i>
-        Tele-pharmacy Dashboard
-    </h1>
-    <p>ระบบให้คำปรึกษาทางเภสัชกรรมผ่านวิดีโอคอล - เชื่อมต่อกับผู้ป่วยได้ทุกที่ทุกเวลา</p>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+        <div>
+            <h1>
+                <i class="fas fa-video"></i>
+                Tele-pharmacy Dashboard
+            </h1>
+            <p>ระบบให้คำปรึกษาทางเภสัชกรรมผ่านวิดีโอคอล - เชื่อมต่อกับผู้ป่วยได้ทุกที่ทุกเวลา</p>
+        </div>
+        <a href="/dashboard" class="btn-consult" style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); color: white; border: 1px solid rgba(255, 255, 255, 0.3);">
+            <i class="fas fa-home"></i>
+            กลับหน้าหลัก
+        </a>
+    </div>
 </div>
 
 <div class="stats-grid">
