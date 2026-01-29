@@ -9,9 +9,9 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 [![Tests](https://img.shields.io/badge/Tests-170%2B-green)](https://phpunit.de)
 
-**เวอร์ชันปัจจุบัน:** 3.4.0  
+**เวอร์ชันปัจจุบัน:** 3.5.0  
 **สถานะ:** AI-Powered Enterprise Ready ✅  
-**อัพเดทล่าสุด:** 26 มกราคม 2569
+**อัพเดทล่าสุด:** 29 มกราคม 2569
 
 ---
 
@@ -185,7 +185,7 @@ Code Coverage:        ~75% (Target: 70%) ✅
 
 ```bash
 # 1. Clone Repository
-git clone https://github.com/yourusername/drugmuk.git
+git clone https://github.com/thering999/drugmuk.git
 cd drugmuk
 
 # 2. Copy Environment File
@@ -422,7 +422,7 @@ sudo apt install -y nginx mysql-server redis-server \
 
 # 3. Clone repository
 cd /var/www
-git clone https://github.com/yourusername/drugmuk.git
+git clone https://github.com/thering999/drugmuk.git
 cd drugmuk
 
 # 4. Install dependencies
@@ -756,6 +756,14 @@ docker-compose restart db php
 ---
 
 ## 📝 Changelog
+
+### [3.5.0] - 2026-01-29 - ENTERPRISE ENHANCED 🏥
+- JHCIS Dashboard improvements with Auto-mapping & Reconciliation
+- Enhanced CSRF protection across all forms and AJAX requests
+- New Notifications settings view with multi-channel support
+- Tele-pharmacy video consultation integration
+- Improved data synchronization reliability
+- Security hardening and performance optimizations
 
 ### [3.2.0] - 2026-01-21 - AI & CLINICAL POWERED 🧠
 - Phase 5 complete - AI-Powered Pharmacy Intelligence
