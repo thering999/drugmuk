@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
     <style>
         :root {
             --primary: #8b5cf6;
@@ -469,7 +470,14 @@
             });
 
             try {
-                const response = await fetch('/api/updates/check', { method: 'POST' });
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/api/updates/check', { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -544,7 +552,14 @@
             }
 
             try {
-                const response = await fetch('/updates/install', { method: 'POST' });
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/updates/install', { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
                 const data = await response.json();
 
                 if (data.success) {
