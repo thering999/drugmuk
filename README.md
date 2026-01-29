@@ -9,9 +9,9 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 [![Tests](https://img.shields.io/badge/Tests-170%2B-green)](https://phpunit.de)
 
-**เวอร์ชันปัจจุบัน:** 3.3.0  
+**เวอร์ชันปัจจุบัน:** 3.4.0  
 **สถานะ:** AI-Powered Enterprise Ready ✅  
-**อัพเดทล่าสุด:** 21 มกราคม 2569
+**อัพเดทล่าสุด:** 26 มกราคม 2569
 
 ---
 
