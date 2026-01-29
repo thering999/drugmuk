@@ -10,11 +10,6 @@ use App\Core\Controller;
  */
 class LabelController extends Controller
 {
-    public function __construct()
-    {
-        parent::__construct();
-    }
-    
     /**
      * View: Generate and Display Label
      * GET /label/print/{dispense_id}/{item_id}
