@@ -757,6 +757,16 @@ docker-compose restart db php
 
 ## 📝 Changelog
 
+### [3.6.0] - 2026-01-29 - INTELLIGENCE & NOTIFICATIONS ENHANCED 🧠🔔
+- **New Notification System**: ย้ายจาก LINE Notify ไปสู่ Discord Webhook และ Telegram Bot ที่เสถียรกว่า
+- **Intelligence Dashboard 2.0**:
+    - **JHCIS Real-Time Summary**: เชื่อมต่อฐานข้อมูล JHCIS โดยตรงเพื่อแสดงสถิติผู้ป่วยและการจ่ายยาวันนี้ พร้อม Top Diagnoses/Drugs
+    - **Cost & Revenue Trend**: กราฟแสดงแนวโน้มต้นทุนและรายได้ย้อนหลัง 6 เดือน
+    - **Forecast Accuracy (MAPE)**: แสดงความแม่นยำของ AI ในการพยากรณ์ยอดใช้ยา
+    - **Dynamic Seasonal Analysis**: Heatmap วิเคราะห์ยอดใช้ยาตามฤดูกาลจากข้อมูลจริง
+    - **Critical Alerts**: ระบบส่งแจ้งเตือนด่วนไปยัง Discord/Telegram เมื่อพบความเสี่ยงสูง
+    - **Export Intelligence Report**: ส่งออกรายงานในรูปแบบ PDF (HTML format)
+
 ### [3.5.0] - 2026-01-29 - ENTERPRISE ENHANCED 🏥
 - JHCIS Dashboard improvements with Auto-mapping & Reconciliation
 - Enhanced CSRF protection across all forms and AJAX requests
@@ -793,6 +803,7 @@ docker-compose restart db php
 - ✅ Security audit guide (OWASP Top 10)
 - ✅ Deployment automation
 - ✅ Backup & monitoring system
+- ✅ Disaster recovery plan
 - ✅ Disaster recovery plan
 
 #### Metrics Achieved
@@ -878,8 +889,8 @@ Special thanks to:
 
 ---
 
-**Last Updated:** 5 มกราคม 2569  
-**Version:** 3.0.0  
-**Status:** ✅ **PRODUCTION READY**
+**Last Updated:** 29 มกราคม 2569  
+**Version:** 3.6.0  
+**Status:** ✅ **PRODUCTION READY + AI INTELLIGENCE**
 
 **🚀 Ready for Production Deployment!**
