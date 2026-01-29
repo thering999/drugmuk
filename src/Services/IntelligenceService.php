@@ -31,15 +31,28 @@ class IntelligenceService
     private function initJHCISConnection()
     {
         try {
-            $configFile = __DIR__ . '/../../config/database.json';
+            $host = getenv('JHCIS_DB_HOST') ?: 'localhost';
+            $port = getenv('JHCIS_DB_PORT') ?: '3306';
+            $dbname = getenv('JHCIS_DB_NAME') ?: 'jhcisdb';
+            $user = getenv('JHCIS_DB_USER') ?: 'root';
+            $pass = getenv('JHCIS_DB_PASS') ?: '';
+
+            // Try to load from jhcis_config.json if exists
+            $configFile = __DIR__ . '/../../config/jhcis_config.json';
             if (file_exists($configFile)) {
                 $config = json_decode(file_get_contents($configFile), true);
-                if (!empty($config['jhcis_host']) && !empty($config['jhcis_database'])) {
-                    $dsn = "mysql:host={$config['jhcis_host']};dbname={$config['jhcis_database']};charset=utf8mb4";
-                    $this->jhcisDb = new \PDO($dsn, $config['jhcis_user'] ?? 'root', $config['jhcis_password'] ?? '');
-                    $this->jhcisDb->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+                if ($config) {
+                    $host = $config['host'] ?? $host;
+                    $port = $config['port'] ?? $port;
+                    $dbname = $config['dbname'] ?? $dbname;
+                    $user = $config['user'] ?? $user;
+                    $pass = $config['pass'] ?? $pass;
                 }
             }
+
+            $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+            $this->jhcisDb = new \PDO($dsn, $user, $pass);
+            $this->jhcisDb->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         } catch (\Exception $e) {
             $this->jhcisDb = null;
         }

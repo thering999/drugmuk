@@ -271,6 +271,8 @@ class IntelligenceController extends Controller
         if (empty($shortageRows)) {
             $shortageRows = '<tr><td colspan="3" style="text-align:center">✅ ไม่มียาที่เสี่ยงขาดสต็อกใน 7 วัน</td></tr>';
         }
+
+        $formattedInventoryValue = number_format($stats['total_inventory_value'], 2);
         
         return <<<HTML
 <!DOCTYPE html>
@@ -331,7 +333,7 @@ class IntelligenceController extends Controller
     
     <div class="section">
         <h2>💰 Inventory Statistics</h2>
-        <p><strong>Total Inventory Value:</strong> ฿ {number_format($stats['total_inventory_value'], 2)}</p>
+        <p><strong>Total Inventory Value:</strong> ฿ {$formattedInventoryValue}</p>
         <p><strong>JHCIS Patients Synced:</strong> {$stats['jhcis_patients_synced']}</p>
         <p><strong>Allergy Alerts Today:</strong> {$stats['allergy_alerts_today']}</p>
     </div>
