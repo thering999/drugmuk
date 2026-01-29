@@ -513,7 +513,8 @@ function loadJHCISSummary() {
             } else {
                 status.textContent = 'Not Connected';
                 status.classList.add('bg-secondary');
-                content.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-unlink"></i><p>JHCIS ไม่ได้เชื่อมต่อ<br><small>ตั้งค่าได้ที่ config/jhcis_config.json</small></p></div>';
+                const errMsg = data.summary && data.summary.error ? `<br><small class="text-danger">${data.summary.error}</small>` : '';
+                content.innerHTML = `<div class="text-center text-muted p-4"><i class="fas fa-unlink"></i><p>JHCIS ไม่ได้เชื่อมต่อ${errMsg}<br><small>ตั้งค่าได้ที่ config/jhcis_config.json</small></p></div>`;
             }
         });
 }
