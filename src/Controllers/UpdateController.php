@@ -12,12 +12,34 @@ use PDO;
 class UpdateController
 {
     private $db;
-    private $currentVersion = '2.2.0'; // เวอร์ชันปัจจุบัน
+    private $currentVersion;
+    private $versionFile;
     private $updateServer = 'https://updates.drugmuk.local/api'; // Mock URL
 
     public function __construct()
     {
         $this->db = Database::getInstance()->getConnection();
+        $this->versionFile = __DIR__ . '/../../version.txt';
+        $this->currentVersion = $this->readVersionFile();
+    }
+
+    /**
+     * อ่านเวอร์ชันปัจจุบันจากไฟล์
+     */
+    private function readVersionFile()
+    {
+        if (file_exists($this->versionFile)) {
+            return trim(file_get_contents($this->versionFile));
+        }
+        return '3.5.0'; // Default version
+    }
+
+    /**
+     * บันทึกเวอร์ชันลงไฟล์
+     */
+    private function writeVersionFile($version)
+    {
+        return file_put_contents($this->versionFile, $version);
     }
 
     /**
@@ -44,15 +66,17 @@ class UpdateController
     public function checkLatestVersion()
     {
         // Mock data - ในระบบจริงจะเรียก API
+        // เวอร์ชันล่าสุดตาม README
         return [
-            'version' => '2.3.0',
-            'release_date' => '2025-01-15',
+            'version' => '3.6.0',
+            'release_date' => '2026-02-01',
             'changelog' => [
-                'เพิ่มฟีเจอร์ Real-time Sync',
-                'ปรับปรุง Performance',
-                'แก้ไข Bug ต่างๆ'
+                'เพิ่มฟีเจอร์ Multi-Hospital Sync',
+                'ปรับปรุง AI Forecasting',
+                'เพิ่ม LINE Notifications',
+                'แก้ไข Bug และปรับปรุง Security'
             ],
-            'download_url' => $this->updateServer . '/download/2.3.0',
+            'download_url' => $this->updateServer . '/download/3.6.0',
             'is_critical' => false
         ];
     }
@@ -125,8 +149,15 @@ class UpdateController
         }
 
         try {
+            // ดึงข้อมูลเวอร์ชันล่าสุด
+            $latest = $this->checkLatestVersion();
+            $newVersion = $latest['version'];
+
             // Mock installation process
-            sleep(2); // Simulate download/install time
+            sleep(1); // Simulate download/install time
+
+            // บันทึกเวอร์ชันใหม่ลงไฟล์
+            $this->writeVersionFile($newVersion);
 
             // บันทึกประวัติ
             $stmt = $this->db->prepare("
@@ -134,7 +165,7 @@ class UpdateController
                 VALUES (?, ?, ?, ?, ?)
             ");
             $stmt->execute([
-                '2.3.0',
+                $newVersion,
                 'minor',
                 'completed',
                 $_SESSION['user_id'],
@@ -144,7 +175,7 @@ class UpdateController
             echo json_encode([
                 'success' => true,
                 'message' => 'อัพเดทสำเร็จ! กรุณา Refresh หน้าเว็บ',
-                'new_version' => '2.3.0'
+                'new_version' => $newVersion
             ], JSON_UNESCAPED_UNICODE);
 
         } catch (\Exception $e) {
