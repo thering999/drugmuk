@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
     <style>
         :root {
             --primary: #6366f1;
@@ -517,6 +518,9 @@
 
     <script>
         // --- DATA & STATE ---
+        // Preload existing logs from server
+        const initialLogs = <?php echo json_encode($recentChanges ?? [], JSON_UNESCAPED_UNICODE); ?>;
+        
         const state = {
             logs: [],
             stats: { to: 0, from: 0, err: 0 },
@@ -528,13 +532,37 @@
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
             initChart();
+            loadInitialLogs();
             connectSSE();
             updateClock();
             setInterval(updateClock, 1000);
             
-            // Check Auto-Sync State (Mock for now, would fetch from API in prod)
+            // Check Auto-Sync State
             checkSystemStatus();
         });
+        
+        function loadInitialLogs() {
+            if (initialLogs && initialLogs.length > 0) {
+                initialLogs.forEach(log => {
+                    log.timestamp = log.created_at ? new Date(log.created_at) : new Date();
+                    
+                    // Count stats
+                    if(log.status === 'error') state.stats.err++;
+                    else if(log.direction === 'to_jhcis') state.stats.to++;
+                    else state.stats.from++;
+                    
+                    state.logs.push(log);
+                });
+                
+                updateStatDisplay();
+                renderLogs();
+                
+                // Update chart with random values for visual effect
+                state.logs.slice(0, 15).forEach(() => {
+                    updateChart(Math.random() * 5 + 1);
+                });
+            }
+        }
 
         // --- CLOCK ---
         function updateClock() {
@@ -692,42 +720,79 @@
         }
 
         async function testSync() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            
             Swal.fire({
                 title: 'Sending Test Data...',
                 didOpen: () => Swal.showLoading(),
-                timer: 500,
+                timer: 800,
                 background: '#1e293b',
                 color: '#fff'
             });
 
             try {
-                // Simulate API Call
-                await fetch('/api/realtime-sync/log', {
+                const testData = {
+                    type: ['dispensing', 'inventory', 'order'][Math.floor(Math.random() * 3)],
+                    record_id: Math.floor(Math.random() * 9000) + 1000,
+                    direction: Math.random() > 0.5 ? 'to_jhcis' : 'from_jhcis',
+                    status: Math.random() > 0.85 ? 'error' : 'synced',
+                    details: {
+                        patient: ['John Doe', 'สมชาย ใจดี', 'Jane Smith'][Math.floor(Math.random() * 3)],
+                        drug: ['Paracetamol 500mg', 'Amoxicillin 250mg', 'Omeprazole 20mg'][Math.floor(Math.random() * 3)],
+                        qty: Math.floor(Math.random() * 100) + 10,
+                        action: 'sync_test'
+                    }
+                };
+
+                const response = await fetch('/api/realtime-sync/log', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'dispensing',
-                        record_id: Math.floor(Math.random() * 9000) + 1000,
-                        direction: Math.random() > 0.5 ? 'to_jhcis' : 'from_jhcis',
-                        status: Math.random() > 0.9 ? 'error' : 'synced',
-                        details: {
-                            patient: 'Test Patient',
-                            drug: 'Paracetamol',
-                            qty: 20
-                        }
-                    })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken || ''
+                    },
+                    body: JSON.stringify(testData)
                 });
                 
-                // Force a manual push just in case SSE is laggy in dev
-                // handleNewLog(...) is handled by SSE event listener usually
+                const result = await response.json();
+                
+                if (result.success) {
+                    // แสดงผลทันทีโดยไม่รอ SSE
+                    testData.id = result.change_id;
+                    testData.timestamp = new Date();
+                    handleNewLog(testData);
+                    
+                    const Toast = Swal.mixin({
+                        toast: true, position: 'top-end', showConfirmButton: false, timer: 2000,
+                        background: '#334155', color: '#fff'
+                    });
+                    Toast.fire({
+                        icon: 'success',
+                        title: 'Test sync sent! Record #' + result.change_id
+                    });
+                } else {
+                    throw new Error(result.message || 'Unknown error');
+                }
             } catch(e) {
                 console.error(e);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Test Failed',
+                    text: e.message,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
             }
         }
 
         async function toggleSyncSystem(checkbox) {
             try {
-                const res = await fetch('/realtime-sync/toggle', { method: 'POST' });
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                const res = await fetch('/realtime-sync/toggle', { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken || ''
+                    }
+                });
                 const data = await res.json();
                 
                 if(data.success) {
