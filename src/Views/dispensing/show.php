@@ -193,7 +193,7 @@
                 </div>
             </div>
 
-            <?php if ($dispensing['clinical_notes']): ?>
+            <?php if (!empty($dispensing['clinical_notes'])): ?>
             <div style="background: #fffaf0; border-left: 5px solid #f6ad55; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
                 <h3 style="color: #c05621; margin-bottom: 10px; font-size: 16px;">
                     <i class="fas fa-comment-medical"></i> Clinical Notes / Pharmacist Advice:
