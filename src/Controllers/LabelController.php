@@ -3,8 +3,6 @@
 namespace App\Controllers;
 
 use App\Core\Controller;
-use App\Services\DrugService;
-use App\Services\PatientService;
 
 /**
  * Label Controller (Phase 4)
@@ -12,13 +10,9 @@ use App\Services\PatientService;
  */
 class LabelController extends Controller
 {
-    private $drugService;
-    private $patientService;
-    
     public function __construct()
     {
-        $this->drugService = new DrugService();
-        $this->patientService = new PatientService();
+        parent::__construct();
     }
     
     /**
