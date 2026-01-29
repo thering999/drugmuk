@@ -9,7 +9,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 [![Tests](https://img.shields.io/badge/Tests-170%2B-green)](https://phpunit.de)
 
-**เวอร์ชันปัจจุบัน:** 3.5.0  
+**เวอร์ชันปัจจุบัน:** 3.6.0  
 **สถานะ:** AI-Powered Enterprise Ready ✅  
 **อัพเดทล่าสุด:** 29 มกราคม 2569
 
@@ -232,7 +232,11 @@ docker-compose up -d
 # 4. Import Database Schema
 Get-Content database/complete_schema.sql | docker-compose exec -T db mysql -u root -p123456 drugmuk
 
-# 5. Access Application
+# 5. Configure JHCIS & Notifications (Optional)
+# ปรับแต่ง config/jhcis_config.json สำหรับการเชื่อมต่อ JHCIS
+# ปรับแต่ง config/notifications.json สำหรับการแจ้งเตือน Discord/Telegram
+
+# 6. Access Application
 # http://localhost:8080
 ```
 
