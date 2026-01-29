@@ -245,6 +245,10 @@ $router->get('/realtime-sync/stream', 'RealtimeSyncController@stream');
 $router->get('/api/realtime-sync/settings', 'RealtimeSyncController@getSettings');
 $router->post('/realtime-sync/toggle', 'RealtimeSyncController@toggle');
 $router->post('/api/realtime-sync/log', 'RealtimeSyncController@logChange');
+$router->get('/api/realtime-sync/statistics', 'RealtimeSyncController@getStatistics');
+$router->post('/api/realtime-sync/retry', 'RealtimeSyncController@retryFailed');
+$router->get('/realtime-sync/export', 'RealtimeSyncController@exportCsv');
+$router->post('/api/realtime-sync/notify', 'RealtimeSyncController@notifyError');
 
 $router->get('/updates', 'UpdateController@index');
 $router->post('/updates/install', 'UpdateController@installUpdate');

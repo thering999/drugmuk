@@ -465,12 +465,21 @@
                         <button class="filter-btn" onclick="setFilter('error')">Errors</button>
                     </div>
                     
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn-icon" onclick="exportLogs()" title="Download Logs">
-                            <i class="fa-solid fa-download"></i>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn-icon" onclick="retryFailed()" title="Retry Failed Syncs" style="background: #f59e0b22; border-color: #f59e0b;">
+                            <i class="fa-solid fa-rotate" style="color: #f59e0b;"></i>
                         </button>
-                        <button class="btn-icon" onclick="testSync()" title="Test Sync (Trigger Fake Data)" style="background: var(--primary); color: white; border: none; width: auto; padding: 0 15px; font-weight: 600;">
-                            <i class="fa-solid fa-vial"></i> &nbsp; Test Sync
+                        <button class="btn-icon" onclick="notifyErrors()" title="Send LINE Alert" style="background: #10b98122; border-color: #10b981;">
+                            <i class="fa-solid fa-bell" style="color: #10b981;"></i>
+                        </button>
+                        <a href="/realtime-sync/export" class="btn-icon" title="Download CSV" style="background: #3b82f622; border-color: #3b82f6; text-decoration: none;">
+                            <i class="fa-solid fa-file-csv" style="color: #3b82f6;"></i>
+                        </a>
+                        <button class="btn-icon" onclick="showStatistics()" title="View Statistics" style="background: #a855f722; border-color: #a855f7;">
+                            <i class="fa-solid fa-chart-line" style="color: #a855f7;"></i>
+                        </button>
+                        <button class="btn-icon" onclick="testSync()" title="Test Sync" style="background: var(--primary); color: white; border: none; width: auto; padding: 0 15px; font-weight: 600;">
+                            <i class="fa-solid fa-vial"></i> &nbsp; Test
                         </button>
                     </div>
                 </div>
@@ -903,6 +912,202 @@
         document.getElementById('detailModal').addEventListener('click', (e) => {
             if(e.target === document.getElementById('detailModal')) closeModal();
         });
+
+        // --- NEW FEATURES ---
+        
+        // Retry Failed Syncs
+        async function retryFailed() {
+            const result = await Swal.fire({
+                title: 'Retry Failed Syncs?',
+                text: 'ระบบจะพยายาม sync รายการที่ล้มเหลว (สูงสุด 10 รายการ)',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Retry Now',
+                cancelButtonText: 'ยกเลิก',
+                background: '#1e293b',
+                color: '#fff'
+            });
+
+            if (!result.isConfirmed) return;
+
+            Swal.fire({
+                title: 'Retrying...',
+                html: 'กำลังพยายามซิงค์ใหม่...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                background: '#1e293b',
+                color: '#fff'
+            });
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                const response = await fetch('/api/realtime-sync/retry', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken || '' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: data.still_failed > 0 ? 'warning' : 'success',
+                        title: 'Retry Complete',
+                        html: `
+                            <div style="text-align: left; padding: 1rem;">
+                                <p>🔄 Retried: <strong>${data.retried}</strong></p>
+                                <p>✅ Success: <strong style="color: #10b981">${data.successful}</strong></p>
+                                <p>❌ Still Failed: <strong style="color: #ef4444">${data.still_failed}</strong></p>
+                            </div>
+                        `,
+                        background: '#1e293b',
+                        color: '#fff'
+                    });
+                    
+                    // Refresh logs
+                    location.reload();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Retry Failed',
+                    text: e.message,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+            }
+        }
+
+        // Send LINE Notification for Errors
+        async function notifyErrors() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            
+            Swal.fire({
+                title: 'Sending LINE Alert...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                background: '#1e293b',
+                color: '#fff'
+            });
+
+            try {
+                const response = await fetch('/api/realtime-sync/notify', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken || '' }
+                });
+                const data = await response.json();
+
+                Swal.fire({
+                    icon: data.success ? 'success' : 'warning',
+                    title: data.success ? 'LINE Sent!' : 'Notice',
+                    html: `
+                        <p>${data.message}</p>
+                        <p style="margin-top: 10px; color: #94a3b8;">Errors today: <strong>${data.error_count}</strong></p>
+                    `,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Failed',
+                    text: e.message,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+            }
+        }
+
+        // Show Statistics Modal
+        async function showStatistics() {
+            Swal.fire({
+                title: 'Loading Statistics...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                background: '#1e293b',
+                color: '#fff'
+            });
+
+            try {
+                const response = await fetch('/api/realtime-sync/statistics');
+                const data = await response.json();
+
+                if (data.success) {
+                    const today = data.today || {};
+                    const weekly = data.weekly || [];
+                    
+                    // Create weekly chart data
+                    const weeklyLabels = weekly.map(w => new Date(w.date).toLocaleDateString('th-TH', {weekday: 'short'}));
+                    const weeklyData = weekly.map(w => parseInt(w.total));
+                    const weeklyErrors = weekly.map(w => parseInt(w.errors));
+
+                    Swal.fire({
+                        title: '📊 Sync Statistics',
+                        html: `
+                            <div style="text-align: left;">
+                                <h4 style="margin: 15px 0 10px; color: #a855f7;">Today's Summary</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                    <div style="background: #334155; padding: 12px; border-radius: 8px;">
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">Total Syncs</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold;">${today.total || 0}</div>
+                                    </div>
+                                    <div style="background: #334155; padding: 12px; border-radius: 8px;">
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">Success Rate</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;">${today.total > 0 ? Math.round(((today.success || 0) / today.total) * 100) : 0}%</div>
+                                    </div>
+                                    <div style="background: #334155; padding: 12px; border-radius: 8px;">
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">To JHCIS</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #a78bfa;">${today.to_jhcis || 0}</div>
+                                    </div>
+                                    <div style="background: #334155; padding: 12px; border-radius: 8px;">
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">From JHCIS</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #34d399;">${today.from_jhcis || 0}</div>
+                                    </div>
+                                </div>
+                                
+                                <h4 style="margin: 20px 0 10px; color: #a855f7;">Errors & Retries</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                    <div style="background: #334155; padding: 12px; border-radius: 8px;">
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">Errors Today</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;">${today.errors || 0}</div>
+                                    </div>
+                                    <div style="background: #334155; padding: 12px; border-radius: 8px;">
+                                        <div style="font-size: 0.8rem; color: #94a3b8;">Pending Retries</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #f59e0b;">${data.pending_retries || 0}</div>
+                                    </div>
+                                </div>
+                                
+                                <h4 style="margin: 20px 0 10px; color: #a855f7;">Last 7 Days</h4>
+                                <div style="display: flex; align-items: flex-end; gap: 5px; height: 80px;">
+                                    ${weekly.map(w => {
+                                        const height = Math.max(10, (parseInt(w.total) / Math.max(...weeklyData)) * 60);
+                                        const hasError = parseInt(w.errors) > 0;
+                                        return `<div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                                            <div style="width: 100%; height: ${height}px; background: ${hasError ? 'linear-gradient(#ef4444, #6366f1)' : '#6366f1'}; border-radius: 4px;"></div>
+                                            <div style="font-size: 0.65rem; margin-top: 5px; color: #94a3b8;">${new Date(w.date).getDate()}</div>
+                                        </div>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `,
+                        width: 500,
+                        background: '#1e293b',
+                        color: '#fff',
+                        confirmButtonText: 'Close'
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Failed to load statistics',
+                    text: e.message,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+            }
+        }
 
     </script>
 </body>
