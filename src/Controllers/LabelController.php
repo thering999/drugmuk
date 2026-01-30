@@ -34,12 +34,33 @@ class LabelController extends Controller
             die('Data not found');
         }
         
-        // Generate Token for Patient Portal (Simulated)
-        $token = base64_encode($data['hn']);
-        $portalUrl = "http://localhost:8080/patient/v/" . $token;
+        // Generate Secure Token for Patient Portal
+        $hn = $data['hn'];
+        $appSecret = $_ENV['APP_KEY'] ?? 'drugmuk_secret_2026';
+        $hash = hash_hmac('sha256', $hn, $appSecret);
+        $token = base64_encode($hn . '|' . substr($hash, 0, 16));
         
-        // QR Code Generation (Using a public API for simplicity in this demo)
-        $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($portalUrl);
+        $portalUrl = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . "://" . $_SERVER['HTTP_HOST'] . "/patient/v/" . urlencode($token);
+        
+        /**
+         * QR Code Generation
+         * Phase 4: Using local library (chillerlan/php-qrcode)
+         */
+        try {
+            if (class_exists('\chillerlan\QRCode\QRCode')) {
+                $options = new \chillerlan\QRCode\QROptions([
+                    'version'      => 5,
+                    'outputType'   => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
+                    'eccLevel'     => \chillerlan\QRCode\QRCode::ECC_L,
+                ]);
+                $qrcode = new \chillerlan\QRCode\QRCode($options);
+                $qrUrl = $qrcode->render($portalUrl); // This returns a Data URI (SVG)
+            } else {
+                $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($portalUrl);
+            }
+        } catch (\Exception $e) {
+            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($portalUrl);
+        }
         
         $this->view('label/medication', [
             'data' => $data,

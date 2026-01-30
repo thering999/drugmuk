@@ -5,7 +5,7 @@
  * รันด้วย Cron: * * * * * php /path/to/cron.php >> /var/log/drugmuk-cron.log 2>&1
  * 
  * ตัวอย่างการตั้ง Cron:
- * - ทุก 6 ชั่วโมง: 0 */6 * * * php /var/www/html/cron.php
+ * - ทุก 6 ชั่วโมง: 0 * / 6 * * * php /var/www/html/cron.php
  * - ทุกวันตอน 06:00: 0 6 * * * php /var/www/html/cron.php
  */
 
@@ -44,42 +44,35 @@ try {
     echo "[1] Generating notifications...\n";
     $notification = new \App\Models\Notification();
     $results = $notification->generateAutoNotifications();
-    echo "    - Low stock alerts: {$results['low_stock']}\n";
-    echo "    - Expiring alerts: {$results['expiring']}\n";
-    echo "    - Data quality alerts: {$results['data_quality']}\n";
+    echo "    - Low stock alerts: " . ($results['low_stock'] ?? 0) . "\n";
+    echo "    - Expiring alerts: " . ($results['expiring'] ?? 0) . "\n";
+    echo "    - Data quality alerts: " . ($results['data_quality'] ?? 0) . "\n";
 
     // 2. Data Quality Check
     echo "\n[2] Running data quality check...\n";
     $cleansing = new \App\Models\DataCleansing();
     $qualityCheck = $cleansing->runFullDataQualityCheck(0); // System user
-    echo "    - Duplicates found: " . ($qualityCheck['duplicates']['found'] ?? 0) . "\n";
-    echo "    - Orphaned found: " . ($qualityCheck['orphaned']['transactions']['found'] ?? 0) . "\n";
+    echo "    - Quality check completed.\n";
 
-    // 3. Send LINE notifications to users who enabled it
-    echo "\n[3] Sending LINE notifications...\n";
-    $db = \App\Core\Database::getInstance()->getConnection();
-    $stmt = $db->query("
-        SELECT ns.line_token, COUNT(n.id) as unread_count
-        FROM notification_settings ns
-        LEFT JOIN notifications n ON (ns.user_id = n.user_id OR n.user_id IS NULL) AND n.is_read = 0
-        WHERE ns.line_enabled = 1 AND ns.line_token IS NOT NULL AND ns.line_token != ''
-        GROUP BY ns.user_id, ns.line_token
-        HAVING unread_count > 0
-    ");
-    $lineUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    foreach ($lineUsers as $user) {
-        $message = "\n📊 สรุปรายวัน Drugmuk\n";
-        $message .= "━━━━━━━━━━━━━━━\n";
-        $message .= "🔔 การแจ้งเตือนใหม่: {$user['unread_count']} รายการ\n";
-        $message .= "⏰ เวลา: " . date('d/m/Y H:i') . "\n";
-        $message .= "━━━━━━━━━━━━━━━";
-        
-        $result = $notification->sendLine($user['line_token'], $message);
-        echo "    - Sent to user: " . (isset($result['status']) && $result['status'] == 200 ? 'OK' : 'FAILED') . "\n";
-    }
+    // 3. Multi-Channel Notifications (Discord, Telegram, LINE)
+    echo "\n[3] Processing Multi-Channel Notifications...\n";
+    $notifController = new \App\Controllers\NotificationController();
+    $notifResults = $notifController->cronCheck();
+    echo "    - Notification processing done.\n";
 
-    echo "\n✅ All tasks completed successfully!\n";
+    // 4. AI Demand Forecasting
+    echo "\n[4] Updating AI Demand Forecasts...\n";
+    $forecasting = new \App\Services\AI\ForecastingEngine();
+    $forecastResults = $forecasting->runAllForecasts();
+    echo "    - AI Forecasting: {$forecastResults['processed']} processed, {$forecastResults['errors']} errors.\n";
+
+    // 5. Automated Daily Backup
+    echo "\n[5] Running Automated Backup...\n";
+    $backup = new \App\Controllers\BackupController();
+    $backupResults = $backup->cronBackup();
+    echo "    - Backup status: " . ($backupResults['success'] ? 'SUCCESS' : 'FAILED') . "\n";
+
+    echo "\n✅ All scheduled tasks completed successfully!\n";
 
 } catch (Exception $e) {
     echo "\n❌ Error: " . $e->getMessage() . "\n";

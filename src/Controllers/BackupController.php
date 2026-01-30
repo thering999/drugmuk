@@ -268,35 +268,72 @@ class BackupController extends Controller
         );
     }
     
-    private function backupDatabase(string $filepath): bool
+    private function backupDatabase(string $filepath, bool $compress = true): bool
     {
-        $db = \App\Core\Database::getInstance()->getConnection();
-        
         $host = $_ENV['DB_HOST'] ?? 'db';
         $name = $_ENV['DB_NAME'] ?? 'drugmuk';
         $user = $_ENV['DB_USER'] ?? 'root';
         $pass = $_ENV['DB_PASSWORD'] ?? '';
         
         // Use mysqldump
-        $command = sprintf(
-            'mysqldump -h %s -u %s %s %s | gzip > %s',
-            escapeshellarg($host),
-            escapeshellarg($user),
-            $pass ? '-p' . escapeshellarg($pass) : '',
-            escapeshellarg($name),
-            escapeshellarg($filepath)
-        );
+        if ($compress) {
+            $command = sprintf(
+                'mysqldump -h %s -u %s %s %s | gzip > %s',
+                escapeshellarg($host),
+                escapeshellarg($user),
+                $pass ? '-p' . escapeshellarg($pass) : '',
+                escapeshellarg($name),
+                escapeshellarg($filepath)
+            );
+        } else {
+            $command = sprintf(
+                'mysqldump -h %s -u %s %s %s > %s',
+                escapeshellarg($host),
+                escapeshellarg($user),
+                $pass ? '-p' . escapeshellarg($pass) : '',
+                escapeshellarg($name),
+                escapeshellarg($filepath)
+            );
+        }
         
         exec($command, $output, $returnCode);
+        
+        // If mysqldump failed, log it
+        if ($returnCode !== 0) {
+            error_log("Backup failed with code $returnCode: " . implode("\n", $output));
+        }
         
         return $returnCode === 0 && file_exists($filepath);
     }
     
     private function backupFull(string $filepath): bool
     {
-        // For now, just backup database
-        // TODO: Add file backup
-        return $this->backupDatabase($filepath);
+        $dbFile = str_replace('.sql.gz', '_db.sql', $filepath);
+        $zipFile = $filepath; // Already ends in .sql.gz from generateBackupFilename, let's just use it or rename
+        
+        // 1. Backup Database
+        $this->backupDatabase($dbFile, false); // backup as .sql first
+        
+        // 2. Create Zip including DB and Uploads
+        $uploadDir = __DIR__ . '/../../public/uploads';
+        $sourceDir = __DIR__ . '/../../src';
+        
+        // Command to zip db and files
+        // We use -j to junk paths for the db file, and -r for directories
+        $command = sprintf(
+            'zip -r %s %s %s %s',
+            escapeshellarg($zipFile),
+            escapeshellarg($dbFile),
+            is_dir($uploadDir) ? escapeshellarg($uploadDir) : '',
+            escapeshellarg($sourceDir)
+        );
+        
+        exec($command, $output, $returnCode);
+        
+        // Cleanup temp db file
+        if (file_exists($dbFile)) unlink($dbFile);
+        
+        return $returnCode === 0 && file_exists($zipFile);
     }
     
     private function restoreDatabase(string $filepath): bool

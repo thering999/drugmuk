@@ -139,6 +139,11 @@ class NotificationController
             'email_address' => $_POST['email_address'] ?? null,
             'line_enabled' => isset($_POST['line_enabled']) ? 1 : 0,
             'line_token' => $_POST['line_token'] ?? null,
+            'discord_enabled' => isset($_POST['discord_enabled']) ? 1 : 0,
+            'discord_webhook' => $_POST['discord_webhook'] ?? null,
+            'telegram_enabled' => isset($_POST['telegram_enabled']) ? 1 : 0,
+            'telegram_bot_token' => $_POST['telegram_bot_token'] ?? null,
+            'telegram_chat_id' => $_POST['telegram_chat_id'] ?? null,
             'daily_summary' => isset($_POST['daily_summary']) ? 1 : 0,
             'daily_summary_time' => $_POST['daily_summary_time'] ?? '08:00',
             'low_stock_threshold' => (int)($_POST['low_stock_threshold'] ?? 20),
@@ -320,23 +325,23 @@ class NotificationController
         switch ($type) {
             case 'low_stock':
                 $items = $this->inventoryModel->getLowStockItems();
-                $results = $this->sendLineNotification('low_stock', $items);
+                $results = $this->sendMultiChannelNotification('low_stock', $items);
                 break;
                 
             case 'expiring':
                 $days = $settings['expiring_days'] ?? 90;
                 $items = $this->inventoryModel->getExpiringItems($days);
-                $results = $this->sendLineNotification('expiring', $items);
+                $results = $this->sendMultiChannelNotification('expiring', $items);
                 break;
                 
             case 'contracts':
                 $contracts = $this->contractModel->getExpiringContracts(30);
-                $results = $this->sendLineNotification('contracts', $contracts);
+                $results = $this->sendMultiChannelNotification('contracts', $contracts);
                 break;
                 
             case 'daily_summary':
                 $stats = $this->getDailyStats();
-                $results = $this->sendLineNotification('daily_summary', $stats);
+                $results = $this->sendMultiChannelNotification('daily_summary', $stats);
                 break;
                 
             default:
@@ -344,7 +349,7 @@ class NotificationController
                 return;
         }
         
-        echo json_encode($results);
+        echo json_encode(['success' => true, 'results' => $results]);
     }
 
     /**
@@ -370,7 +375,7 @@ class NotificationController
         if ($settings['notify_low_stock'] ?? false) {
             $items = $this->inventoryModel->getLowStockItems();
             if (!empty($items)) {
-                $results['low_stock'] = $this->sendLineNotification('low_stock', $items);
+                $results['low_stock'] = $this->sendMultiChannelNotification('low_stock', $items);
                 $this->logNotification('low_stock', count($items) . ' items');
             }
         }
@@ -380,7 +385,7 @@ class NotificationController
             $days = $settings['expiring_days'] ?? 90;
             $items = $this->inventoryModel->getExpiringItems($days);
             if (!empty($items)) {
-                $results['expiring'] = $this->sendLineNotification('expiring', $items);
+                $results['expiring'] = $this->sendMultiChannelNotification('expiring', $items);
                 $this->logNotification('expiring', count($items) . ' items');
             }
         }
@@ -389,7 +394,7 @@ class NotificationController
         if ($settings['notify_contracts'] ?? false) {
             $contracts = $this->contractModel->getExpiringContracts(30);
             if (!empty($contracts)) {
-                $results['contracts'] = $this->sendLineNotification('contracts', $contracts);
+                $results['contracts'] = $this->sendMultiChannelNotification('contracts', $contracts);
                 $this->logNotification('contracts', count($contracts) . ' contracts');
             }
         }
@@ -402,7 +407,7 @@ class NotificationController
             // Within 5 minutes of scheduled time
             if (abs(strtotime($currentTime) - strtotime($summaryTime)) < 300) {
                 $stats = $this->getDailyStats();
-                $results['daily_summary'] = $this->sendLineNotification('daily_summary', $stats);
+                $results['daily_summary'] = $this->sendMultiChannelNotification('daily_summary', $stats);
                 $this->logNotification('daily_summary', 'sent');
             }
         }
@@ -451,15 +456,40 @@ class NotificationController
     
     private function sendLineNotification(string $type, $data): array
     {
-        $settings = $this->getNotificationSettings();
-        $token = $settings['line_token'] ?? '';
-        
-        if (empty($token)) {
-            return ['success' => false, 'error' => 'LINE token not configured'];
-        }
-        
+        error_log("sendLineNotification is deprecated, use sendMultiChannelNotification instead.");
+        return $this->sendMultiChannelNotification($type, $data);
+    }
+
+    private function sendMultiChannelNotification(string $type, $data): array
+    {
+        $userId = $_SESSION['user_id'] ?? 1; // Fallback for cron
+        $settings = $this->notificationModel->getSettings($userId);
         $message = $this->formatNotificationMessage($type, $data);
-        return $this->notificationModel->sendLine($token, $message);
+        $results = ['success' => false, 'channels' => []];
+
+        // LINE (Deprecated)
+        if (($settings['line_enabled'] ?? 0) && !empty($settings['line_token'])) {
+            $results['channels']['line'] = $this->notificationModel->sendLine($settings['line_token'], $message);
+            $results['success'] = true;
+        }
+
+        // Discord
+        if (($settings['discord_enabled'] ?? 0) && !empty($settings['discord_webhook'])) {
+            $results['channels']['discord'] = $this->notificationModel->sendDiscord($settings['discord_webhook'], $message);
+            $results['success'] = $results['success'] || $results['channels']['discord'];
+        }
+
+        // Telegram
+        if (($settings['telegram_enabled'] ?? 0) && !empty($settings['telegram_bot_token']) && !empty($settings['telegram_chat_id'])) {
+            $results['channels']['telegram'] = $this->notificationModel->sendTelegram(
+                $settings['telegram_bot_token'], 
+                $settings['telegram_chat_id'], 
+                $message
+            );
+            $results['success'] = $results['success'] || $results['channels']['telegram'];
+        }
+
+        return $results;
     }
     
     private function formatNotificationMessage(string $type, $data): string

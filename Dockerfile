@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     libzip-dev \
-    libicu-dev
+    libicu-dev \
+    python3 \
+    python3-pip \
+    default-mysql-client
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*

@@ -56,11 +56,33 @@ class Notification
                     `email_address` varchar(255) DEFAULT NULL,
                     `line_enabled` tinyint(1) DEFAULT 0,
                     `line_token` varchar(255) DEFAULT NULL,
+                    `discord_enabled` tinyint(1) DEFAULT 0,
+                    `discord_webhook` varchar(255) DEFAULT NULL,
+                    `telegram_enabled` tinyint(1) DEFAULT 0,
+                    `telegram_bot_token` varchar(255) DEFAULT NULL,
+                    `telegram_chat_id` varchar(255) DEFAULT NULL,
                     `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     PRIMARY KEY (`id`),
                     UNIQUE KEY `unique_user` (`user_id`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
+
+            // Migration: Add new columns if table exists but columns are missing
+            $columns = [
+                'discord_enabled' => "ADD COLUMN `discord_enabled` tinyint(1) DEFAULT 0",
+                'discord_webhook' => "ADD COLUMN `discord_webhook` varchar(255) DEFAULT NULL",
+                'telegram_enabled' => "ADD COLUMN `telegram_enabled` tinyint(1) DEFAULT 0",
+                'telegram_bot_token' => "ADD COLUMN `telegram_bot_token` varchar(255) DEFAULT NULL",
+                'telegram_chat_id' => "ADD COLUMN `telegram_chat_id` varchar(255) DEFAULT NULL"
+            ];
+
+            foreach ($columns as $col => $sql) {
+                try {
+                    $this->pdo->exec("ALTER TABLE `notification_settings` $sql");
+                } catch (PDOException $e) {
+                    // Column likely exists
+                }
+            }
         } catch (PDOException $e) {
             error_log("Notification table creation error: " . $e->getMessage());
         }
@@ -215,6 +237,58 @@ class Notification
     }
 
     /**
+     * ส่งแจ้งเตือนผ่าน Discord
+     */
+    public function sendDiscord($webhookUrl, $message)
+    {
+        $payload = json_encode([
+            'content' => $message,
+            'username' => 'Drugmuk Alert',
+            'avatar_url' => 'http://localhost:8080/img/logo.png'
+        ]);
+
+        $ch = curl_init($webhookUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $httpCode >= 200 && $httpCode < 300;
+    }
+
+    /**
+     * ส่งแจ้งเตือนผ่าน Telegram
+     */
+    public function sendTelegram($token, $chatId, $message)
+    {
+        $url = "https://api.telegram.org/bot{$token}/sendMessage";
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'HTML'
+            ]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $httpCode == 200;
+    }
+
+    /**
      * ส่งแจ้งเตือนผ่าน Email
      */
     public function sendEmail($to, $subject, $body)
@@ -333,8 +407,12 @@ class Notification
     {
         try {
             $stmt = $this->pdo->prepare("
-                INSERT INTO notification_settings (user_id, notify_low_stock, notify_expiring, notify_data_quality, notify_orders, email_enabled, email_address, line_enabled, line_token)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO notification_settings (
+                    user_id, notify_low_stock, notify_expiring, notify_data_quality, notify_orders, 
+                    email_enabled, email_address, line_enabled, line_token,
+                    discord_enabled, discord_webhook, telegram_enabled, telegram_bot_token, telegram_chat_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     notify_low_stock = VALUES(notify_low_stock),
                     notify_expiring = VALUES(notify_expiring),
@@ -343,7 +421,12 @@ class Notification
                     email_enabled = VALUES(email_enabled),
                     email_address = VALUES(email_address),
                     line_enabled = VALUES(line_enabled),
-                    line_token = VALUES(line_token)
+                    line_token = VALUES(line_token),
+                    discord_enabled = VALUES(discord_enabled),
+                    discord_webhook = VALUES(discord_webhook),
+                    telegram_enabled = VALUES(telegram_enabled),
+                    telegram_bot_token = VALUES(telegram_bot_token),
+                    telegram_chat_id = VALUES(telegram_chat_id)
             ");
             
             return $stmt->execute([
@@ -355,9 +438,15 @@ class Notification
                 $data['email_enabled'] ?? 0,
                 $data['email_address'] ?? null,
                 $data['line_enabled'] ?? 0,
-                $data['line_token'] ?? null
+                $data['line_token'] ?? null,
+                $data['discord_enabled'] ?? 0,
+                $data['discord_webhook'] ?? null,
+                $data['telegram_enabled'] ?? 0,
+                $data['telegram_bot_token'] ?? null,
+                $data['telegram_chat_id'] ?? null
             ]);
         } catch (PDOException $e) {
+            error_log("Notification saveSettings error: " . $e->getMessage());
             return false;
         }
     }
