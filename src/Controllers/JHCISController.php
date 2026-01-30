@@ -1250,12 +1250,27 @@ class JHCISController {
             // โหลดการตั้งค่า JHCIS จากไฟล์ config
             $configFile = __DIR__ . '/../../config/jhcis_config.json';
             $jhcisDbName = 'jhcisdb'; // ค่าเริ่มต้น
+            $hospitalId = $_GET['hospital_id'] ?? $_POST['hospital_id'] ?? null;
             
-            if (file_exists($configFile)) {
-                $json = file_get_contents($configFile);
-                $config = json_decode($json, true);
-                if ($config && !empty($config['dbname'])) {
-                    $jhcisDbName = $config['dbname'];
+            // If hospital_id is provided, use ConnectionPool to get the correct JHCIS DB
+            if ($hospitalId) {
+                try {
+                    $this->jhcisDb = \App\Services\JHCIS\JHCISConnectionPool::getConnection((int)$hospitalId);
+                } catch (Exception $e) {
+                    throw new Exception("ไม่สามารถเชื่อมต่อ JHCIS สำหรับโรงพยาบาลรหัส $hospitalId ได้: " . $e->getMessage());
+                }
+            } else {
+                // Fallback to default connection if not provided
+                $hStmt = $this->db->query("SELECT id FROM jhcis_hospitals WHERE is_active = 1 LIMIT 1");
+                $hospitalId = $hStmt->fetchColumn() ?: 1;
+                
+                try {
+                    $this->jhcisDb = \App\Services\JHCIS\JHCISConnectionPool::getConnection((int)$hospitalId);
+                } catch (Exception $e) {
+                    // Final fallback to the one loaded in constructor if pool fails
+                    if (!$this->jhcisDb) {
+                        throw new Exception("ไม่พบการเชื่อมต่อ JHCIS ที่ใช้งานได้");
+                    }
                 }
             }
             
@@ -1263,10 +1278,10 @@ class JHCISController {
             try {
                 $this->jhcisDb->query("SELECT 1");
             } catch (Exception $e) {
-                throw new Exception("ไม่สามารถเชื่อมต่อ JHCIS ได้ - กรุณาตั้งค่าการเชื่อมต่อที่ /admin/jhcis/settings");
+                throw new Exception("ไม่สามารถเชื่อมต่อ JHCIS ได้ - กรุณาตรวจสอบการตั้งค่า");
             }
             
-            // ตรวจสอบว่ามีตารางยาอะไรใน JHCIS (ไม่ระบุชื่อ database)
+            // ตรวจสอบว่ามีตารางยาอะไรใน JHCIS
             $tableCheck = $this->jhcisDb->query("SHOW TABLES LIKE '%drug%'")->fetchAll(PDO::FETCH_COLUMN);
             
             if (empty($tableCheck)) {
@@ -1296,13 +1311,13 @@ class JHCISController {
                 throw new Exception("ไม่พบตารางยาที่รองรับ (cdrug, drug, drugitems) ใน JHCIS<br>ตารางที่พบ: " . $foundTables);
             }
             
-            // ดึงรายการยาจาก JHCIS (ไม่ระบุชื่อ database เพราะเชื่อมต่อไปแล้ว)
+            // ดึงรายการยาจาก JHCIS
             $query = "
                 SELECT 
                     {$drugCodeField} as drugcode,
                     {$drugNameField} as name
                 FROM {$drugTable}
-                LIMIT 100
+                LIMIT 500
             ";
             
             $jhcisDrugs = $this->jhcisDb->query($query)->fetchAll(PDO::FETCH_ASSOC);
@@ -1314,12 +1329,12 @@ class JHCISController {
             $mappedCount = 0;
             
             foreach ($jhcisDrugs as $jhcisDrug) {
-                // ตรวจสอบว่ามี mapping อยู่แล้วหรือไม่
+                // ตรวจสอบว่ามี mapping อยู่แล้วหรือไม่ (ตามรหัสโรงพยาบาล)
                 $checkStmt = $this->db->prepare("
                     SELECT id FROM jhcis_drug_mapping 
-                    WHERE jhcis_drug_code = ?
+                    WHERE jhcis_drug_code = ? AND hospital_id = ?
                 ");
-                $checkStmt->execute([$jhcisDrug['drugcode']]);
+                $checkStmt->execute([$jhcisDrug['drugcode'], $hospitalId]);
                 
                 if ($checkStmt->fetch()) {
                     continue; // มี mapping แล้ว ข้าม
@@ -1347,13 +1362,13 @@ class JHCISController {
                             mapping_method,
                             confidence_score,
                             hospital_id
-                        ) VALUES (?, ?, 'exact', 1.0, 1)
+                        ) VALUES (?, ?, 'exact', 1.0, ?)
                     ");
                     
                     $insertStmt->execute([
                         $jhcisDrug['drugcode'],
                         $drugmukDrug['id'],
-                        $_SESSION['user_id'] ?? null
+                        $hospitalId
                     ]);
                     
                     $mappedCount++;
@@ -1365,9 +1380,10 @@ class JHCISController {
             echo json_encode([
                 'success' => true,
                 'mapped_count' => $mappedCount,
+                'hospital_id' => $hospitalId,
                 'drug_table' => $drugTable,
                 'total_checked' => count($jhcisDrugs),
-                'message' => "Auto-mapping สำเร็จ! จับคู่ได้ $mappedCount จาก " . count($jhcisDrugs) . " รายการ (ตาราง: $drugTable)"
+                'message' => "Auto-mapping สำเร็จ! จับคู่ได้ $mappedCount จาก " . count($jhcisDrugs) . " รายการ"
             ]);
         } catch (Exception $e) {
             if ($this->db->inTransaction()) {
@@ -1378,57 +1394,6 @@ class JHCISController {
             echo json_encode([
                 'success' => false,
                 'message' => 'Auto-Mapping ล้มเหลว: ' . $e->getMessage()
-            ]);
-        }
-    }
-    
-    /**fetch(PDO::FETCH_ASSOC);
-                
-                if ($drugmukDrug) {
-                    // สร้าง mapping
-                    $insertStmt = $this->db->prepare("
-                        INSERT INTO jhcis_drug_mapping (
-                            jhcis_drug_code,
-                            drugmuk_drug_id,
-                            mapping_method,
-                            confidence_score,
-                            hospital_id
-                        ) VALUES (?, ?, 'exact', 1.0, 1)
-                    ");
-                    
-                    $insertStmt->execute([
-                        $jhcisDrug['drugcode'],
-                        $drugmukDrug['id'],
-                        $_SESSION['user_id'] ?? null
-                    ]);
-                    
-                    $mappedCount++;
-                }
-            }
-            
-            $this->db->commit();
-            
-            echo json_encode([
-                'success' => true,
-                'mapped_count' => $mappedCount,
-                'message' => "Auto-mapping สำเร็จ! จับคู่ได้ $mappedCount รายการ"
-            ]);
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            http_response_code(500);
-            
-            $errorMsg = $e->getMessage();
-            
-            // แสดงข้อความที่เป็นประโยชน์มากขึ้น
-            if (strpos($errorMsg, 'cdrug') !== false) {
-                $errorMsg = "ไม่พบตาราง 'cdrug' ใน JHCIS - กรุณาตรวจสอบการเชื่อมต่อ JHCIS";
-            } elseif (strpos($errorMsg, 'Access denied') !== false) {
-                $errorMsg = "ไม่สามารถเชื่อมต่อ JHCIS ได้ - กรุณาตรวจสอบการตั้งค่า";
-            }
-            
-            echo json_encode([
-                'success' => false,
-                'message' => "Auto-Mapping ล้มเหลว: " . $errorMsg
             ]);
         }
     }

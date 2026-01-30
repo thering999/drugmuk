@@ -267,59 +267,206 @@ class JHCISReportGenerator
         ];
     }
     
+    
     /**
-     * Generate executive summary
+     * Generate multi-hospital comparison report
+     * 
+     * @return array
+     */
+    public function generateMultiHospitalComparisonReport(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT 
+                h.id, h.name, h.code, h.pcucode,
+                (SELECT COUNT(*) FROM jhcis_drug_mapping WHERE hospital_id = h.id) as mapped_count,
+                (SELECT MAX(completed_at) FROM jhcis_sync_log WHERE hospital_id = h.id AND sync_status = 'completed') as last_success_sync,
+                (SELECT SUM(records_success) FROM jhcis_sync_log WHERE hospital_id = h.id AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as records_30d,
+                (SELECT COUNT(*) FROM jhcis_sync_log WHERE hospital_id = h.id AND sync_status = 'failed' AND started_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as failures_7d
+             FROM jhcis_hospitals h
+             WHERE h.is_active = 1
+             ORDER BY h.name ASC"
+        );
+        $hospitals = $stmt->fetchAll();
+        
+        $totalMapped = 0;
+        foreach ($hospitals as $h) {
+            $totalMapped += $h['mapped_count'];
+        }
+        
+        return [
+            'hospitals' => $hospitals,
+            'summary' => [
+                'total_hospitals' => count($hospitals),
+                'total_mappings' => $totalMapped,
+                'avg_mappings' => count($hospitals) > 0 ? round($totalMapped / count($hospitals), 1) : 0
+            ],
+            'generated_at' => date('Y-m-d H:i:s')
+        ];
+    }
+
+    /**
+     * Generate consolidated consumption report across all hospitals
+     */
+    public function generateConsolidatedConsumptionReport(string $fromDate, string $toDate): array
+    {
+        $stmt = $this->db->query("SELECT code, name FROM jhcis_hospitals WHERE is_active = 1");
+        $hospitals = $stmt->fetchAll();
+        
+        if (empty($hospitals)) return ['error' => 'No active hospitals found'];
+        
+        $sql = "
+            SELECT 
+                d.name as drug_name,
+                d.code as drug_code,
+                disp.hospital_code,
+                SUM(di.quantity) as total_qty
+            FROM dispensing disp
+            JOIN dispensing_items di ON disp.id = di.dispense_id
+            JOIN drugs d ON di.drug_id = d.id
+            WHERE disp.dispense_date BETWEEN ? AND ?
+            GROUP BY d.id, disp.hospital_code
+            ORDER BY drug_name ASC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$fromDate . ' 00:00:00', $toDate . ' 23:59:59']);
+        $rawData = $stmt->fetchAll();
+        
+        $matrix = [];
+        $drugTotals = [];
+        
+        foreach ($rawData as $row) {
+            $name = $row['drug_name'];
+            $hCode = $row['hospital_code'];
+            $matrix[$name][$hCode] = (float)$row['total_qty'];
+            $drugTotals[$name] = ($drugTotals[$name] ?? 0) + (float)$row['total_qty'];
+        }
+        
+        arsort($drugTotals);
+        
+        $finalData = [];
+        foreach ($drugTotals as $name => $total) {
+            $finalData[] = [
+                'name' => $name,
+                'total' => $total,
+                'breakdown' => $matrix[$name]
+            ];
+        }
+        
+        return [
+            'hospitals' => $hospitals,
+            'data' => array_slice($finalData, 0, 50),
+            'period' => ['from' => $fromDate, 'to' => $toDate]
+        ];
+    }
+    
+    /**
+     * Generate executive summary report
      * 
      * @param int $hospitalId
      * @return array
      */
     public function generateExecutiveSummary(int $hospitalId): array
     {
-        $today = date('Y-m-d');
-        $lastWeek = date('Y-m-d', strtotime('-7 days'));
-        $lastMonth = date('Y-m-d', strtotime('-30 days'));
-        
-        // Sync stats (last 7 days)
-        $syncReport = $this->generateSyncPerformanceReport($hospitalId, $lastWeek, $today);
-        
-        // Data quality
-        $qualityReport = $this->generateDataQualityReport($hospitalId);
-        
-        // Active alerts
-        $alertService = new JHCISAlertService();
-        $activeAlerts = $alertService->getActiveAlerts($hospitalId, 10);
-        
-        return [
-            'hospital_id' => $hospitalId,
-            'generated_at' => date('Y-m-d H:i:s'),
-            'sync_performance' => [
-                'last_7_days' => $syncReport['overall'],
-                'success_rate' => $syncReport['overall']['success_rate'] . '%'
-            ],
-            'data_quality' => [
-                'mapped_drugs' => $qualityReport['mapping_coverage']['total_mapped'],
-                'high_confidence' => $this->getHighConfidenceCount($qualityReport)
-            ],
-            'alerts' => [
-                'active_count' => count($activeAlerts),
-                'recent' => array_slice($activeAlerts, 0, 5)
-            ]
-        ];
-    }
-    
-    /**
-     * Get high confidence mapping count
-     * 
-     * @param array $qualityReport
-     * @return int
-     */
-    private function getHighConfidenceCount(array $qualityReport): int
-    {
-        foreach ($qualityReport['mapping_coverage']['by_confidence'] as $level) {
-            if ($level['confidence_level'] === 'High (90%+)') {
-                return $level['count'];
+        try {
+            // Get hospital info
+            $stmt = $this->db->prepare("SELECT code, name FROM jhcis_hospitals WHERE id = ?");
+            $stmt->execute([$hospitalId]);
+            $hospital = $stmt->fetch();
+            
+            if (!$hospital) {
+                return ['error' => 'Hospital not found'];
             }
+            
+            // Sync statistics (last 30 days)
+            $stmt = $this->db->prepare(
+                "SELECT 
+                    COUNT(*) as total_syncs,
+                    SUM(records_processed) as total_records,
+                    SUM(CASE WHEN sync_status = 'completed' THEN 1 ELSE 0 END) as successful_syncs,
+                    MAX(completed_at) as last_sync
+                 FROM jhcis_sync_log
+                 WHERE hospital_id = ?
+                 AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+            );
+            $stmt->execute([$hospitalId]);
+            $syncStats = $stmt->fetch();
+            
+            // Data quality metrics
+            $stmt = $this->db->prepare(
+                "SELECT COUNT(*) as mapped_drugs 
+                 FROM jhcis_drug_mapping 
+                 WHERE hospital_id = ?"
+            );
+            $stmt->execute([$hospitalId]);
+            $dataQuality = $stmt->fetch();
+            
+            // Recent alerts
+            $stmt = $this->db->prepare(
+                "SELECT 
+                    alert_type as type,
+                    message,
+                    created_at
+                 FROM jhcis_alerts
+                 WHERE hospital_id = ?
+                 AND status = 'active'
+                 ORDER BY created_at DESC
+                 LIMIT 5"
+            );
+            $stmt->execute([$hospitalId]);
+            $alerts = $stmt->fetchAll();
+            
+            // Active alerts count
+            $stmt = $this->db->prepare(
+                "SELECT COUNT(*) as count 
+                 FROM jhcis_alerts 
+                 WHERE hospital_id = ? AND status = 'active'"
+            );
+            $stmt->execute([$hospitalId]);
+            $activeAlertsCount = $stmt->fetchColumn();
+            
+            $totalSyncs = (int)($syncStats['total_syncs'] ?? 0);
+            $successSyncs = (int)($syncStats['successful_syncs'] ?? 0);
+            $successRate = $totalSyncs > 0 ? round(($successSyncs / $totalSyncs) * 100, 1) : 0;
+
+            return [
+                'hospital' => $hospital,
+                'sync_performance' => [
+                    'total_syncs' => $totalSyncs,
+                    'total_records' => (int)($syncStats['total_records'] ?? 0),
+                    'successful_syncs' => $successSyncs,
+                    'success_rate' => $successRate,
+                    'last_sync' => $syncStats['last_sync'] ?? null
+                ],
+                'data_quality' => [
+                    'mapped_drugs' => (int)($dataQuality['mapped_drugs'] ?? 0)
+                ],
+                'alerts' => [
+                    'active_count' => (int)$activeAlertsCount,
+                    'recent' => $alerts
+                ],
+                'generated_at' => date('Y-m-d H:i:s')
+            ];
+            
+        } catch (\Exception $e) {
+            $this->logger->error("Failed to generate executive summary", [
+                'hospital_id' => $hospitalId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'error' => 'Failed to generate report: ' . $e->getMessage(),
+                'hospital' => ['code' => 'N/A', 'name' => 'Unknown'],
+                'sync_statistics' => [
+                    'total_syncs' => 0,
+                    'total_records' => 0,
+                    'successful_syncs' => 0,
+                    'last_sync' => null
+                ],
+                'data_quality' => ['mapped_drugs' => 0],
+                'alerts' => ['active_count' => 0, 'recent' => []],
+                'generated_at' => date('Y-m-d H:i:s')
+            ];
         }
-        return 0;
     }
 }

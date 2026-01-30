@@ -796,6 +796,17 @@ docker-compose restart db php
 
 ## 📝 Changelog
 
+### [3.6.1] - 2026-01-30 - JHCIS REPORTS & STABILITY FIXES 🛠️📊
+- **JHCIS Reports Enhancement**:
+  - แก้ไขปัญหา Dropdown รพ.สต. ไม่แสดงข้อมูล โดยเพิ่ม API Fallback mechanism (Client-side fetching)
+  - เพิ่ม API Endpoint ใหม่: `/admin/jhcis/api/hospitals` สำหรับดึงรายชื่อ รพ.สต. แบบ Real-time
+  - ปรับปรุงการแสดงผล Executive Summary แก้ไขปัญหา Missing DOM Elements และ Data Structure
+- **Stability Improvements**:
+  - ปรับ Session Security ให้ยืดหยุ่นขึ้น (Lenient Mode) ลดปัญหา Log out โดยไม่จำเป็นเมื่อ Fingerprint เปลี่ยนเล็กน้อย
+  - เพิ่มการแสดงผล PCU Code ในรายงานเปรียบเทียบ (ใช้ Code เป็น Fallback ถ้าไม่มี PCU Code)
+  - ซ่อน Error Messages เมื่อโหลดข้อมูลสำเร็จเพื่อ UX ที่ดีขึ้น
+
+
 ### [3.6.0] - 2026-01-29 - INTELLIGENCE & NOTIFICATIONS ENHANCED 🧠🔔
 - **New Notification System**: ย้ายจาก LINE Notify ไปสู่ Discord Webhook และ Telegram Bot ที่เสถียรกว่า
 - **Intelligence Dashboard 2.0**:

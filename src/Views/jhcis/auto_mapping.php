@@ -3,8 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Drug Mapping - JHCIS</title>
+    <title>Auto Drug Mapping - ระบบแนะนำการจับคู่ยา</title>
     <?= \App\Core\CSRF::metaTag() ?>
+    <script>
+        // CSRF Interceptor - Must be early in the head
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                const method = (options.method || 'GET').toUpperCase();
+                if (method !== 'GET') {
+                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    if (token) {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = token;
+                    }
+                }
+                return originalFetch(url, options);
+            };
+        })();
+    </script>
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .mapping-container {
@@ -165,7 +182,7 @@
         <div class="page-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h1>🤖 Auto Drug Mapping</h1>
+                    <h1>🤖 ระบบจับคู่ยาอัตโนมัติ (AI Support)</h1>
                     <p>ระบบแนะนำการ map รหัสยาอัตโนมัติด้วย AI</p>
                 </div>
                 <a href="/admin/jhcis/dashboard" class="btn btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
@@ -177,13 +194,13 @@
         <div class="control-panel">
             <div class="control-row">
                 <div class="form-group">
-                    <label>Minimum Confidence (%)</label>
+                    <label>ค่าความเชื่อมั่นขั้นต่ำ (%)</label>
                     <input type="number" id="minConfidence" class="form-control" value="80" min="0" max="100">
                 </div>
                 <div class="form-group">
                     <label>&nbsp;</label>
                     <button class="btn btn-primary" onclick="getSuggestions()">
-                        🔍 Get Suggestions
+                        🔍 ค้นหาข้อเสนอแนะ
                     </button>
                 </div>
             </div>
@@ -192,15 +209,15 @@
         <div id="stats" class="stats" style="display: none;">
             <div class="stat-card">
                 <div class="stat-value" id="totalSuggestions">0</div>
-                <div class="stat-label">Total Suggestions</div>
+                <div class="stat-label">ข้อเสนอแนะทั้งหมด</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="highConfidence">0</div>
-                <div class="stat-label">High Confidence (≥90%)</div>
+                <div class="stat-label">ความเชื่อมั่นสูง (≥90%)</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="selectedCount">0</div>
-                <div class="stat-label">Selected</div>
+                <div class="stat-label">เลือกแล้ว</div>
             </div>
         </div>
 
@@ -213,10 +230,10 @@
             <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
-                    <label for="selectAll" style="margin-left: 5px;">Select All</label>
+                    <label for="selectAll" style="margin-left: 5px;">เลือกทั้งหมด</label>
                 </div>
                 <button class="btn btn-success" onclick="applyMappings(event)">
-                    ✅ Apply Selected Mappings
+                    ✅ บันทึกการจับคู่ที่เลือก
                 </button>
             </div>
 
@@ -227,12 +244,12 @@
                             <th width="50">
                                 <input type="checkbox" id="selectAllHeader" onchange="toggleSelectAll()">
                             </th>
-                            <th>JHCIS Code</th>
-                            <th>JHCIS Name</th>
+                            <th>รหัสยา JHCIS</th>
+                            <th>ชื่อยา JHCIS</th>
                             <th>→</th>
-                            <th>Drugmuk Name</th>
-                            <th>Confidence</th>
-                            <th>Match Type</th>
+                            <th>ชื่อยาในระบบ Drugmuk</th>
+                            <th>ความเชื่อมั่น</th>
+                            <th>วิธีตรวจสอบ</th>
                         </tr>
                     </thead>
                     <tbody id="suggestionsBody">
@@ -288,6 +305,11 @@
                 const confidenceClass = confidence >= 90 ? 'confidence-high' : 
                                        confidence >= 70 ? 'confidence-medium' : 'confidence-low';
 
+                let matchTypeLabel = suggestion.match_type;
+                if (suggestion.match_type === 'exact_code') matchTypeLabel = 'รหัสตรงกันทุกประการ';
+                if (suggestion.match_type === 'exact_name') matchTypeLabel = 'ชื่อตรงกันทุกประการ';
+                if (suggestion.match_type === 'partial_name') matchTypeLabel = 'ชื่อใกล้เคียง';
+
                 const row = `
                     <tr>
                         <td><input type="checkbox" class="suggestion-checkbox" data-index="${index}"></td>
@@ -300,7 +322,7 @@
                                 ${confidence}%
                             </span>
                         </td>
-                        <td><span class="match-type">${suggestion.match_type}</span></td>
+                        <td><span class="match-type">${matchTypeLabel}</span></td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
@@ -344,18 +366,18 @@
             });
 
             if (selectedMappings.length === 0) {
-                alert('Please select at least one mapping');
+                alert('กรุณาเลือกรายการที่ต้องการจับคู่อย่างน้อย 1 รายการ');
                 return;
             }
 
-            if (!confirm(`Apply ${selectedMappings.length} mappings?`)) {
+            if (!confirm(`ยืนยันการบันทึกการจับคู่ ${selectedMappings.length} รายการหรือไม่?`)) {
                 return;
             }
 
             const btn = event.currentTarget;
             const originalText = btn.textContent;
             btn.disabled = true;
-            btn.textContent = '⏳ Applying...';
+            btn.textContent = '⏳ กำลังบันทึก...';
 
             try {
                 const formData = new FormData();
@@ -370,7 +392,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(`Success! Applied: ${data.data.applied}, Failed: ${data.data.failed}`);
+                    alert(`สำเร็จ! บันทึกแล้ว: ${data.data.applied}, ล้มเหลว: ${data.data.failed}`);
                     getSuggestions(); // Refresh
                 } else {
                     alert('Error: ' + data.message);
@@ -382,25 +404,6 @@
                 btn.textContent = originalText;
             }
         }
-    </script>
-    <script>
-        // Auto-include CSRF token in all AJAX requests
-        document.addEventListener('DOMContentLoaded', function() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            
-            if (csrfToken) {
-                // Fetch API
-                const originalFetch = window.fetch;
-                window.fetch = function(url, options = {}) {
-                    const method = (options.method || 'GET').toUpperCase();
-                    if (method !== 'GET') {
-                        options.headers = options.headers || {};
-                        options.headers['X-CSRF-Token'] = csrfToken;
-                    }
-                    return originalFetch(url, options);
-                };
-            }
-        });
     </script>
 </body>
 </html>

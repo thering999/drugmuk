@@ -3,7 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unmapped Drugs - Drugmuk</title>
+    <title>Unmapped Drugs - รายการยาที่ยังไม่ได้จับคู่</title>
+    <?= \App\Core\CSRF::metaTag() ?>
+    <script>
+        // CSRF Interceptor - Must be early in the head
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                const method = (options.method || 'GET').toUpperCase();
+                if (method !== 'GET') {
+                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    if (token) {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = token;
+                    }
+                }
+                return originalFetch(url, options);
+            };
+        })();
+    </script>
     <style>
         * {
             margin: 0;
@@ -163,6 +181,27 @@
             color: #991b1b;
         }
 
+        .status-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.online { background: #10b981; box-shadow: 0 0 10px #10b981; }
+        .status-dot.offline { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
         .btn-sm {
             padding: 6px 12px;
             font-size: 12px;
@@ -302,17 +341,28 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>⚠️ Unmapped Drugs</h1>
-            <p>รายการยาที่ยังไม่ได้จับคู่กับ JHCIS</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>⚠️ ยาที่ยังไม่ได้จับคู่ (Unmapped)</h1>
+                    <p>รายการยาในระบบ Drugmuk ที่ยังไม่ได้จับคู่รหัสกับ JHCIS</p>
+                </div>
+                <div id="connection-status-widget" class="status-card" style="margin-bottom: 0;">
+                    <div class="status-dot offline" id="conn-dot"></div>
+                    <div>
+                        <div id="conn-text" style="font-weight: bold; font-size: 14px; color: #ef4444;">JHCIS: กำลังตรวจสอบ...</div>
+                        <div id="hospital-name" style="font-size: 12px; color: #666;">-</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-success" onclick="autoMapAll()">
-                ⚡ Auto-Map All
+                ⚡ จับคู่อัตโนมัติทั้งหมด (AI)
             </button>
             <a href="/admin/jhcis/mapping" class="btn btn-primary">
-                ← Back to Mapping
+                ← กลับไปหน้า Mapping
             </a>
         </div>
 
@@ -322,13 +372,13 @@
         <!-- Table -->
         <div class="table-container">
             <div class="table-header">
-                <h2>Unmapped Drugs List</h2>
-                <input type="text" class="search-box" id="search" placeholder="🔍 Search drugs..." onkeyup="filterTable()">
+                <h2>รายการยาที่ยังไม่ถูกจับคู่</h2>
+                <input type="text" class="search-box" id="search" placeholder="🔍 ค้นหาชื่อยาหรือรหัส..." onkeyup="filterTable()">
             </div>
 
             <div id="loading" class="loading">
                 <div class="spinner"></div>
-                <p>Loading data...</p>
+                <p>กำลังโหลดข้อมูล...</p>
             </div>
 
             <div id="empty-state" class="empty-state" style="display: none;">
@@ -340,12 +390,12 @@
             <table id="unmapped-table" style="display: none;">
                 <thead>
                     <tr>
-                        <th>Drug Code</th>
-                        <th>Drug Name</th>
-                        <th>Generic Name</th>
-                        <th>Unit</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>รหัสยา</th>
+                        <th>ชื่อยา</th>
+                        <th>ชื่อสามัญ</th>
+                        <th>หน่วย</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
                     </tr>
                 </thead>
                 <tbody id="unmapped-tbody">
@@ -358,29 +408,29 @@
     <div class="modal" id="quick-map-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Quick Map Drug</h3>
+                <h3>จับคู่ชื่อยาด่วน</h3>
             </div>
             <form id="quick-map-form" onsubmit="submitQuickMap(event)">
                 <input type="hidden" id="drug-id">
                 <div class="form-group">
-                    <label>Drug Name</label>
+                    <label>ชื่อยา</label>
                     <input type="text" class="form-control" id="drug-name" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="jhcis-code">JHCIS Drug Code *</label>
-                    <input type="text" class="form-control" id="jhcis-code" required>
+                    <label for="jhcis-code">รหัสยา JHCIS *</label>
+                    <input type="text" class="form-control" id="jhcis-code" required placeholder="ป้อนรหัสยาจาก JHCIS">
                 </div>
                 <div class="form-group">
-                    <label for="mapping-type">Mapping Type *</label>
+                    <label for="mapping-type">ประเภทการจับคู่ *</label>
                     <select class="form-control" id="mapping-type" required>
-                        <option value="exact">Exact Match</option>
-                        <option value="equivalent">Equivalent</option>
-                        <option value="manual">Manual</option>
+                        <option value="exact">ตรงกันทุกประการ (Exact)</option>
+                        <option value="equivalent">เทียบเท่า (Equivalent)</option>
+                        <option value="manual">กำหนดเอง (Manual)</option>
                     </select>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Save Mapping</button>
+                    <button type="button" class="btn" onclick="closeModal()">ยกเลิก</button>
+                    <button type="submit" class="btn btn-success">บันทึกการจับคู่</button>
                 </div>
             </form>
         </div>
@@ -389,8 +439,45 @@
     <script>
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
             loadUnmappedDrugs();
         });
+
+        // Load statistics and connection status
+        async function loadStats() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const hospitalId = urlParams.get('hospital_id');
+                const apiUrl = hospitalId ? `/api/jhcis/mapping/stats?hospital_id=${hospitalId}` : '/api/jhcis/mapping/stats';
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (data.connection) {
+                    const dot = document.getElementById('conn-dot');
+                    const text = document.getElementById('conn-text');
+                    const hosp = document.getElementById('hospital-name');
+                    
+                    if (data.connection.status) {
+                        dot.className = 'status-dot online';
+                        text.textContent = 'JHCIS: เชื่อมต่อแล้ว';
+                        text.style.color = '#10b981';
+                    } else {
+                        dot.className = 'status-dot offline';
+                        text.textContent = 'JHCIS: การเชื่อมต่อขัดข้อง';
+                        text.style.color = '#ef4444';
+                    }
+                    hosp.textContent = data.connection.hospital_name || '-';
+                    
+                    if (!hospitalId && data.connection.hospital_id) {
+                        const newUrl = window.location.pathname + '?hospital_id=' + data.connection.hospital_id;
+                        window.history.replaceState({path: newUrl}, '', newUrl);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
 
         // Load unmapped drugs
         async function loadUnmappedDrugs() {
@@ -415,10 +502,10 @@
                             <td>${drug.name}</td>
                             <td>${drug.generic_name || '-'}</td>
                             <td>${drug.unit || '-'}</td>
-                            <td><span class="badge badge-unmapped">Unmapped</span></td>
+                            <td><span class="badge badge-unmapped">ยังไม่จับคู่</span></td>
                             <td>
                                 <button class="btn btn-sm btn-success" onclick="quickMap(${drug.id}, '${drug.name}')">
-                                    Quick Map
+                                    จับคู่ด่วน
                                 </button>
                             </td>
                         </tr>

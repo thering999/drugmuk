@@ -95,6 +95,13 @@ class JHCISSyncService
     {
         $this->connectJHCIS($hospitalId);
         
+        // Get hospital config
+        $stmt = $this->drugmukDb->prepare("SELECT code, pcucode FROM jhcis_hospitals WHERE id = ?");
+        $stmt->execute([$hospitalId]);
+        $hospitalConfig = $stmt->fetch();
+        $targetPcuCode = $hospitalConfig['pcucode'] ?? null;
+        $hospitalCode = $hospitalConfig['code'] ?? 'MAIN';
+
         // Start sync log
         $logId = $this->startSyncLog($hospitalId, 'dispensing');
         
@@ -104,55 +111,46 @@ class JHCISSyncService
             
             // Check if we have the required tables
             if (!in_array('cdrug', $availableTables)) {
-                throw new \Exception("JHCIS database missing required 'cdrug' table. Available tables: " . implode(', ', array_slice($availableTables, 0, 10)));
+                throw new \Exception("JHCIS database missing required 'cdrug' table.");
             }
             
-            // Detect dispensing table (visitdrug is the most common)
+            // Detect dispensing table
             $dispensingTable = $this->detectTable(['visitdrug', 'opd_dispensing', 'dispensing']);
             if (!$dispensingTable) {
-                throw new \Exception("No dispensing table found in JHCIS. Available tables: " . implode(', ', array_slice($availableTables, 0, 10)));
+                throw new \Exception("No dispensing table found in JHCIS.");
             }
             
             // Get columns from the dispensing table
             $dispensingColumns = $this->getTableColumns($dispensingTable);
             
-            // Detect VN/Visit field (this should exist)
+            // Detect VN/Visit field
             $vnField = $this->detectColumnFromList($dispensingColumns, ['visitno', 'vn', 'visit_no', 'vstno', 'visit_id']);
-            if (!$vnField) {
-                throw new \Exception("Cannot find VN (visit number) column in $dispensingTable table. Available columns: " . implode(', ', $dispensingColumns));
-            }
+            if (!$vnField) throw new \Exception("Cannot find VN column in $dispensingTable.");
             
             // Detect drug code field
             $drugCodeField = $this->detectColumnFromList($dispensingColumns, ['drugcode', 'drug_code', 'did', 'drug_id', 'drugid']);
-            if (!$drugCodeField) {
-                throw new \Exception("Cannot find drug code column in $dispensingTable table. Available columns: " . implode(', ', $dispensingColumns));
-            }
+            if (!$drugCodeField) throw new \Exception("Cannot find drug code column in $dispensingTable.");
             
-            // Detect quantity field (might not exist in visitdrug)
+            // Detect quantity field
             $qtyField = $this->detectColumnFromList($dispensingColumns, ['qty', 'quantity', 'amount', 'drug_qty', 'dispense_qty', 'unit']);
             
-            // Check if HN exists in dispensing table
+            // Detect HN and Date
             $hnInDispensing = $this->detectColumnFromList($dispensingColumns, ['hn', 'patient_hn', 'HN', 'cid', 'patient_id', 'pid']);
             $dateInDispensing = $this->detectColumnFromList($dispensingColumns, ['datestart', 'dispense_date', 'vstdate', 'date', 'created_date', 'date_visit', 'visitdate', 'dateupdate']);
             
-            // If HN or date not in dispensing table, we need to join with visit table
             $visitJoin = "";
             $hnField = $hnInDispensing;
             $dateField = $dateInDispensing;
+            $visitTable = null;
             
             if (!$hnInDispensing || !$dateInDispensing) {
-                // Find visit/OPD table
                 $visitTable = $this->detectTable(['visit', 'opd', 'opd_visit', 'visitopd']);
                 if ($visitTable) {
                     $visitColumns = $this->getTableColumns($visitTable);
                     $visitVnField = $this->detectColumnFromList($visitColumns, ['visitno', 'vn', 'visit_no', 'vstno', 'id']);
                     
-                    if (!$hnInDispensing) {
-                        $hnField = $this->detectColumnFromList($visitColumns, ['hn', 'patient_hn', 'HN', 'cid', 'patient_id', 'pid']);
-                    }
-                    if (!$dateInDispensing) {
-                        $dateField = $this->detectColumnFromList($visitColumns, ['datestart', 'vstdate', 'visit_date', 'date', 'created_date', 'dateupdate']);
-                    }
+                    if (!$hnInDispensing) $hnField = $this->detectColumnFromList($visitColumns, ['hn', 'patient_hn', 'HN', 'cid', 'patient_id', 'pid']);
+                    if (!$dateInDispensing) $dateField = $this->detectColumnFromList($visitColumns, ['datestart', 'vstdate', 'visit_date', 'date', 'created_date', 'dateupdate']);
                     
                     if ($visitVnField && ($hnField || $dateField)) {
                         $visitJoin = "INNER JOIN $visitTable vst ON d.$vnField = vst.$visitVnField";
@@ -165,21 +163,25 @@ class JHCISSyncService
                 $dateField = "d.$dateField";
             }
             
-            // If still no HN, use visitno as identifier
-            if (!$hnField) {
-                $hnField = "d.$vnField"; // Use visitno as HN
-            }
-            
-            // If still no date, use dateupdate or current date
+            if (!$hnField) $hnField = "d.$vnField";
             if (!$dateField) {
                 $updateField = $this->detectColumnFromList($dispensingColumns, ['dateupdate', 'updated_at', 'created_at']);
-                if ($updateField) {
-                    $dateField = "d.$updateField";
-                } else {
-                    $dateField = "CURDATE()";
-                }
+                $dateField = $updateField ? "d.$updateField" : "CURDATE()";
             }
             
+            // Detect pcucode field for filtering
+            $pcuField = null;
+            if ($targetPcuCode) {
+                $pcuField = $this->detectColumnFromList($dispensingColumns, ['pcucode', 'off_id', 'hcode']);
+                if ($pcuField) {
+                    $pcuField = "d.$pcuField";
+                } elseif ($visitTable) {
+                    $vstCols = $this->getTableColumns($visitTable);
+                    $pcuField = $this->detectColumnFromList($vstCols, ['pcucode', 'off_id', 'hcode']);
+                    if ($pcuField) $pcuField = "vst.$pcuField";
+                }
+            }
+
             // Detect patient table for names
             $personTable = $this->detectTable(['patient', 'person']);
             $patientJoin = "";
@@ -193,154 +195,74 @@ class JHCISSyncService
                 
                 if ($personHnField && $fnameField) {
                     $patientJoin = "LEFT JOIN $personTable p ON vst." . str_replace('vst.', '', $hnField) . " = p.$personHnField";
-                    if ($lnameField) {
-                        $nameField = "CONCAT(COALESCE(p.$fnameField, ''), ' ', COALESCE(p.$lnameField, ''))";
-                    } else {
-                        $nameField = "COALESCE(p.$fnameField, 'Unknown')";
-                    }
+                    $nameField = $lnameField ? "CONCAT(COALESCE(p.$fnameField, ''), ' ', COALESCE(p.$lnameField, ''))" : "COALESCE(p.$fnameField, 'Unknown')";
                 }
             }
 
-            // Build the query
+            // Build query
             $qtySelect = $qtyField ? "d.$qtyField" : "1";
-            
-            $sql = "SELECT 
-                        $hnField as hn,
-                        d.$vnField as vn,
-                        $nameField as patient_name,
-                        $dateField as vstdate,
-                        d.$drugCodeField as drugcode,
-                        dr.drugname as drug_name,
-                        $qtySelect as qty
+            $sql = "SELECT $hnField as hn, d.$vnField as vn, $nameField as patient_name, $dateField as vstdate, d.$drugCodeField as drugcode, dr.drugname as drug_name, $qtySelect as qty
                     FROM $dispensingTable d
-                    $visitJoin
-                    $patientJoin
+                    $visitJoin $patientJoin
                     INNER JOIN cdrug dr ON d.$drugCodeField = dr.drugcode
                     WHERE $dateField BETWEEN ? AND ?
-                    ORDER BY $dateField DESC
-                    LIMIT 500";
+                    " . ($pcuField && $targetPcuCode ? " AND $pcuField = ?" : "") . "
+                    ORDER BY $dateField DESC LIMIT 1000";
             
             $stmt = $this->jhcisDb->prepare($sql);
-            $stmt->execute([$fromDate, $toDate]);
+            $params = [$fromDate, $toDate];
+            if ($pcuField && $targetPcuCode) $params[] = $targetPcuCode;
+            $stmt->execute($params);
             $records = $stmt->fetchAll();
             
-            $imported = 0;
-            $failed = 0;
-            
-            // Group by VN
+            $imported = 0; $failed = 0;
             $dispensingGroups = [];
             foreach ($records as $record) {
                 $vn = $record['vn'];
                 if (!isset($dispensingGroups[$vn])) {
-                    $dispensingGroups[$vn] = [
-                        'hn' => $record['hn'],
-                        'vn' => $record['vn'],
-                        'patient_name' => trim($record['patient_name']) ?: 'Unknown',
-                        'dispense_date' => $record['vstdate'],
-                        'items' => []
-                    ];
+                    $dispensingGroups[$vn] = ['hn' => $record['hn'], 'vn' => $vn, 'patient_name' => trim($record['patient_name']) ?: 'Unknown', 'dispense_date' => $record['vstdate'], 'items' => []];
                 }
                 
-                // Find drug in Drugmuk - first check mapping table
-                $mappingStmt = $this->drugmukDb->prepare("
-                    SELECT drugmuk_drug_id 
-                    FROM jhcis_drug_mapping 
-                    WHERE jhcis_drug_code = ? AND (hospital_id = ? OR hospital_id IS NULL)
-                ");
+                $mappingStmt = $this->drugmukDb->prepare("SELECT drugmuk_drug_id FROM jhcis_drug_mapping WHERE jhcis_drug_code = ? AND (hospital_id = ? OR hospital_id IS NULL)");
                 $mappingStmt->execute([$record['drugcode'], $hospitalId]);
                 $mapping = $mappingStmt->fetch();
+                $drugId = $mapping ? $mapping['drugmuk_drug_id'] : null;
                 
-                $drugId = null;
-                if ($mapping) {
-                    $drugId = $mapping['drugmuk_drug_id'];
-                } else {
-                    // Fallback to direct code match in drugs table
+                if (!$drugId) {
                     $drugStmt = $this->drugmukDb->prepare("SELECT id FROM drugs WHERE code = ?");
                     $drugStmt->execute([$record['drugcode']]);
                     $drug = $drugStmt->fetch();
-                    if ($drug) {
-                        $drugId = $drug['id'];
-                    }
+                    if ($drug) $drugId = $drug['id'];
                 }
                 
-                if ($drugId) {
-                    $dispensingGroups[$vn]['items'][] = [
-                        'drug_id' => $drugId,
-                        'quantity' => $record['qty'] ?: 1
-                    ];
-                }
+                if ($drugId) $dispensingGroups[$vn]['items'][] = ['drug_id' => $drugId, 'quantity' => $record['qty'] ?: 1];
             }
             
-            // Insert into Drugmuk
             foreach ($dispensingGroups as $vn => $group) {
-                if (empty($group['items'])) {
-                    $failed++;
-                    continue;
-                }
+                if (empty($group['items'])) { $failed++; continue; }
                 
-                // Check if already exists
-                $checkStmt = $this->drugmukDb->prepare("SELECT id FROM dispensing WHERE vn = ?");
-                $checkStmt->execute([$vn]);
-                if ($checkStmt->fetch()) {
-                    continue; // Skip duplicates
-                }
+                $checkStmt = $this->drugmukDb->prepare("SELECT id FROM dispensing WHERE vn = ? AND hospital_code = ?");
+                $checkStmt->execute([$vn, $hospitalCode]);
+                if ($checkStmt->fetch()) continue;
                 
                 try {
                     $this->drugmukDb->beginTransaction();
-                    
-                    // Insert dispensing header
-                    $insertStmt = $this->drugmukDb->prepare(
-                        "INSERT INTO dispensing (hn, vn, patient_name, dispense_date, user_id, created_at)
-                         VALUES (?, ?, ?, ?, 1, NOW())"
-                    );
-                    $insertStmt->execute([
-                        $group['hn'],
-                        $group['vn'],
-                        $group['patient_name'],
-                        $group['dispense_date']
-                    ]);
-                    
+                    $this->drugmukDb->prepare("INSERT INTO dispensing (hospital_code, hn, vn, patient_name, dispense_date, user_id, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())")
+                         ->execute([$hospitalCode, $group['hn'], $group['vn'], $group['patient_name'], $group['dispense_date']]);
                     $dispenseId = $this->drugmukDb->lastInsertId();
-                    
-                    // Insert items
-                    $itemStmt = $this->drugmukDb->prepare(
-                        "INSERT INTO dispensing_items (dispense_id, drug_id, quantity)
-                         VALUES (?, ?, ?)"
-                    );
-                    
-                    foreach ($group['items'] as $item) {
-                        $itemStmt->execute([
-                            $dispenseId,
-                            $item['drug_id'],
-                            $item['quantity']
-                        ]);
-                    }
-                    
+                    $itemStmt = $this->drugmukDb->prepare("INSERT INTO dispensing_items (dispense_id, drug_id, quantity) VALUES (?, ?, ?)");
+                    foreach ($group['items'] as $item) $itemStmt->execute([$dispenseId, $item['drug_id'], $item['quantity']]);
                     $this->drugmukDb->commit();
                     $imported++;
-                    
-                } catch (\Exception $e) {
-                    $this->drugmukDb->rollBack();
-                    $failed++;
-                }
+                } catch (\Exception $e) { $this->drugmukDb->rollBack(); $failed++; }
             }
             
-            // Complete sync log
             $this->completeSyncLog($logId, count($records), $imported, $failed);
+            $this->drugmukDb->prepare("UPDATE jhcis_hospitals SET last_sync_at = NOW() WHERE id = ?")->execute([$hospitalId]);
             
-            // Update hospital last sync
-            $this->drugmukDb->prepare("UPDATE jhcis_hospitals SET last_sync_at = NOW() WHERE id = ?")
-                ->execute([$hospitalId]);
-            
-            return [
-                'success' => true,
-                'total_records' => count($records),
-                'imported' => $imported,
-                'failed' => $failed
-            ];
-            
+            return ['success' => true, 'total_records' => count($records), 'imported' => $imported, 'failed' => $failed];
         } catch (\Exception $e) {
-            $this->failSyncLog($logId, $e->getMessage());
+            if (isset($logId)) $this->failSyncLog($logId, $e->getMessage());
             throw $e;
         }
     }

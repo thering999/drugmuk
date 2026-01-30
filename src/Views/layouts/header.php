@@ -31,6 +31,7 @@
                 <a href="/admin/intelligence"><i class="fas fa-brain"></i> Intelligence</a>
                 <a href="/purchasing">แผนจัดซื้อ</a>
                 <a href="/inventory">คลังสินค้า</a>
+                <a href="/admin/jhcis/dashboard">JHCIS</a>
                 <a href="/logout">ออกจากระบบ (<?php echo $_SESSION['username']; ?>)</a>
             <?php else: ?>
                 <a href="/login">เข้าสู่ระบบ</a>

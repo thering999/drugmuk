@@ -3,8 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drug Code Mapping - Drugmuk</title>
+    <title>Drug Code Mapping - ระบบบริหารคลังยา</title>
     <?= \App\Core\CSRF::metaTag() ?>
+    <script>
+        // CSRF Interceptor - Must be early in the head
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                const method = (options.method || 'GET').toUpperCase();
+                if (method !== 'GET') {
+                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    if (token) {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRF-Token'] = token;
+                    }
+                }
+                return originalFetch(url, options);
+            };
+        })();
+    </script>
     <style>
         * {
             margin: 0;
@@ -249,6 +266,27 @@
             color: #991b1b;
         }
 
+        .status-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.online { background: #10b981; box-shadow: 0 0 10px #10b981; }
+        .status-dot.offline { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
         .btn-sm {
             padding: 6px 12px;
             font-size: 12px;
@@ -377,26 +415,37 @@
         
         <!-- Header -->
         <div class="header">
-            <h1>🔗 Drug Code Mapping</h1>
-            <p>จัดการการจับคู่รหัสยาระหว่างระบบ Drugmuk และ JHCIS</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🔗 Drug Code Mapping</h1>
+                    <p>จัดการการจับคู่รหัสยาระหว่างระบบ Drugmuk และ JHCIS</p>
+                </div>
+                <div id="connection-status-widget" class="status-card" style="margin-bottom: 0;">
+                    <div class="status-dot offline" id="conn-dot"></div>
+                    <div>
+                        <div id="conn-text" style="font-weight: bold; font-size: 14px; color: #ef4444;">JHCIS: กำลังตรวจสอบ...</div>
+                        <div id="hospital-name" style="font-size: 12px; color: #666;">-</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Stats -->
         <div class="stats-grid">
             <div class="stat-card success">
-                <h3>Mapped Drugs</h3>
+                <h3>ยาที่จับคู่แล้ว</h3>
                 <div class="value" id="stat-mapped">-</div>
             </div>
             <div class="stat-card warning">
-                <h3>Unmapped Drugs</h3>
+                <h3>ยาที่ยังไม่ได้จับคู่</h3>
                 <div class="value" id="stat-unmapped">-</div>
             </div>
             <div class="stat-card">
-                <h3>Mapping Rate</h3>
+                <h3>อัตราการจับคู่</h3>
                 <div class="value" id="stat-rate">-</div>
             </div>
             <div class="stat-card">
-                <h3>Total Drugs</h3>
+                <h3>ยาทั้งหมดในระบบ</h3>
                 <div class="value" id="stat-total">-</div>
             </div>
         </div>
@@ -404,16 +453,16 @@
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-success" onclick="autoMap()">
-                ⚡ Auto-Mapping
+                ⚡ จับคู่อัตโนมัติ (AI)
             </button>
             <button class="btn btn-primary" onclick="showManualMapModal()">
-                ➕ Manual Mapping
+                ➕ จับคู่ด้วยตนเอง
             </button>
             <button class="btn btn-warning" onclick="showUnmappedDrugs()">
-                ⚠️ View Unmapped Drugs
+                ⚠️ ดูยาที่ยังไม่ได้จับคู่
             </button>
             <a href="/admin/jhcis/dashboard" class="btn btn-primary">
-                ← Back to Dashboard
+                ← กลับหน้า Dashboard
             </a>
         </div>
 
@@ -423,25 +472,25 @@
         <!-- Table -->
         <div class="table-container">
             <div class="table-header">
-                <h2>Drug Mappings</h2>
-                <input type="text" class="search-box" id="search" placeholder="🔍 Search drugs..." onkeyup="filterTable()">
+                <h2>รายการการจับคู่ยา</h2>
+                <input type="text" class="search-box" id="search" placeholder="🔍 ค้นหาชื่อยาหรือรหัส..." onkeyup="filterTable()">
             </div>
 
             <div id="loading" class="loading">
                 <div class="spinner"></div>
-                <p>Loading data...</p>
+                <p>กำลังโหลดข้อมูล...</p>
             </div>
 
             <table id="mapping-table" style="display: none;">
                 <thead>
                     <tr>
-                        <th>JHCIS Code</th>
-                        <th>Drugmuk Drug</th>
-                        <th>Mapping Type</th>
-                        <th>Confidence</th>
-                        <th>Mapped By</th>
-                        <th>Mapped At</th>
-                        <th>Actions</th>
+                        <th>รหัสยา JHCIS</th>
+                        <th>ยาในระบบ Drugmuk</th>
+                        <th>ประเภทการจับคู่</th>
+                        <th>ความเชื่อมั่น</th>
+                        <th>ผู้จับคู่</th>
+                        <th>วันที่จับคู่</th>
+                        <th>จัดการ</th>
                     </tr>
                 </thead>
                 <tbody id="mapping-tbody">
@@ -454,34 +503,34 @@
     <div class="modal" id="manual-map-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Manual Drug Mapping</h3>
+                <h3>จับคู่ยาด้วยตนเอง</h3>
             </div>
             <form id="manual-map-form" onsubmit="submitManualMap(event)">
                 <div class="form-group">
-                    <label for="jhcis-drugcode">JHCIS Drug Code *</label>
-                    <input type="text" class="form-control" id="jhcis-drugcode" required>
+                    <label for="jhcis-drugcode">รหัสยา JHCIS *</label>
+                    <input type="text" class="form-control" id="jhcis-drugcode" required placeholder="ป้อนรหัสยาจาก JHCIS">
                 </div>
                 <div class="form-group">
-                    <label for="drugmuk-drug-id">Drugmuk Drug *</label>
+                    <label for="drugmuk-drug-id">ยาในระบบ Drugmuk *</label>
                     <select class="form-control" id="drugmuk-drug-id" required>
-                        <option value="">-- Select Drug --</option>
+                        <option value="">-- เลือกรายการยาในระบบ --</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="mapping-type">Mapping Type *</label>
+                    <label for="mapping-type">ประเภทการจับคู่ *</label>
                     <select class="form-control" id="mapping-type" required>
-                        <option value="exact">Exact Match</option>
-                        <option value="equivalent">Equivalent</option>
-                        <option value="manual">Manual</option>
+                        <option value="exact">ตรงกันทุกประการ (Exact)</option>
+                        <option value="equivalent">เทียบเท่า (Equivalent)</option>
+                        <option value="manual">กำหนดเอง (Manual)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="notes">Notes</label>
-                    <textarea class="form-control" id="notes" rows="3"></textarea>
+                    <label for="notes">หมายเหตุ</label>
+                    <textarea class="form-control" id="notes" rows="3" placeholder="ระบุเหตุผลในการจับคู่ (ถ้ามี)"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Mapping</button>
+                    <button type="button" class="btn" onclick="closeModal()">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary">บันทึกการจับคู่</button>
                 </div>
             </form>
         </div>
@@ -498,7 +547,12 @@
         // Load statistics
         async function loadStats() {
             try {
-                const response = await fetch('/api/jhcis/mapping/stats');
+                // Get hospital_id from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const hospitalId = urlParams.get('hospital_id');
+                const apiUrl = hospitalId ? `/api/jhcis/mapping/stats?hospital_id=${hospitalId}` : '/api/jhcis/mapping/stats';
+                
+                const response = await fetch(apiUrl);
                 const data = await response.json();
                 
                 document.getElementById('stat-mapped').textContent = data.mapped || 0;
@@ -507,6 +561,30 @@
                 
                 const rate = data.total > 0 ? Number((data.mapped / data.total) * 100).toFixed(1) : 0;
                 document.getElementById('stat-rate').textContent = rate + '%';
+
+                // Update connection status
+                if (data.connection) {
+                    const dot = document.getElementById('conn-dot');
+                    const text = document.getElementById('conn-text');
+                    const hosp = document.getElementById('hospital-name');
+                    
+                    if (data.connection.status) {
+                        dot.className = 'status-dot online';
+                        text.textContent = 'JHCIS: เชื่อมต่อแล้ว';
+                        text.style.color = '#10b981';
+                    } else {
+                        dot.className = 'status-dot offline';
+                        text.textContent = 'JHCIS: การเชื่อมต่อขัดข้อง';
+                        text.style.color = '#ef4444';
+                    }
+                    hosp.textContent = data.connection.hospital_name || '-';
+                    
+                    // If hospital_id wasn't in URL, add it
+                    if (!hospitalId && data.connection.hospital_id) {
+                        const newUrl = window.location.pathname + '?hospital_id=' + data.connection.hospital_id;
+                        window.history.replaceState({path: newUrl}, '', newUrl);
+                    }
+                }
             } catch (error) {
                 console.error('Error loading stats:', error);
             }
@@ -522,17 +600,22 @@
                 tbody.innerHTML = '';
                 
                 data.forEach(mapping => {
+                    let typeLabel = mapping.mapping_type;
+                    if (mapping.mapping_type === 'exact') typeLabel = 'ตรงกันทุกประการ';
+                    if (mapping.mapping_type === 'equivalent') typeLabel = 'เทียบเท่า';
+                    if (mapping.mapping_type === 'manual') typeLabel = 'กำหนดเอง';
+
                     const row = `
                         <tr>
                             <td><strong>${mapping.jhcis_drug_code}</strong></td>
                             <td>${mapping.drug_name} (${mapping.drug_code})</td>
-                            <td><span class="badge badge-${mapping.mapping_type}">${mapping.mapping_type}</span></td>
+                            <td><span class="badge badge-${mapping.mapping_type}">${typeLabel}</span></td>
                             <td>${Number(mapping.confidence_score * 100).toFixed(0)}%</td>
                             <td>${mapping.mapped_by_name || '-'}</td>
                             <td>${formatDate(mapping.mapped_at)}</td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="editMapping(${mapping.id})">Edit</button>
-                                <button class="btn btn-sm" onclick="deleteMapping(${mapping.id})">Delete</button>
+                                <button class="btn btn-sm btn-warning" onclick="editMapping(${mapping.id})">แก้ไข</button>
+                                <button class="btn btn-sm" onclick="deleteMapping(${mapping.id})" style="background: #ef4444; color: white;">ลบ</button>
                             </td>
                         </tr>
                     `;
@@ -725,25 +808,6 @@
                 showAlert('เกิดข้อผิดพลาดในการลบ', 'error');
             }
         }
-    </script>
-    <script>
-        // Auto-include CSRF token in all AJAX requests
-        document.addEventListener('DOMContentLoaded', function() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            
-            if (csrfToken) {
-                // Fetch API
-                const originalFetch = window.fetch;
-                window.fetch = function(url, options = {}) {
-                    const method = (options.method || 'GET').toUpperCase();
-                    if (method !== 'GET') {
-                        options.headers = options.headers || {};
-                        options.headers['X-CSRF-Token'] = csrfToken;
-                    }
-                    return originalFetch(url, options);
-                };
-            }
-        });
     </script>
 </body>
 </html>

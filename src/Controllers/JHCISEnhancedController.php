@@ -95,6 +95,7 @@ class JHCISEnhancedController
             $this->ensureColumnExists('jhcis_sync_log', 'hospital_id', 'INT(11) NULL AFTER id');
             $this->ensureColumnExists('jhcis_sync_log', 'started_at', 'DATETIME NOT NULL AFTER sync_status');
             $this->ensureColumnExists('jhcis_sync_log', 'completed_at', 'DATETIME NULL AFTER started_at');
+            $this->ensureColumnExists('jhcis_hospitals', 'pcucode', 'VARCHAR(20) DEFAULT NULL AFTER db_pass');
             
         } catch (\PDOException $e) {
             // Table doesn't exist or other DB error, create tables
@@ -135,6 +136,7 @@ class JHCISEnhancedController
               `db_name` VARCHAR(100) NOT NULL,
               `db_user` VARCHAR(100) NOT NULL,
               `db_pass` VARCHAR(255) NOT NULL,
+              `pcucode` VARCHAR(20) DEFAULT NULL,
               `is_active` TINYINT(1) DEFAULT 1,
               `last_sync_at` DATETIME NULL,
               `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -312,7 +314,7 @@ class JHCISEnhancedController
     }
     
     /**
-     * Auto Mapping Page
+     * Auto Mapping Page (AI Suggestions)
      * GET /admin/jhcis/auto-mapping
      */
     public function autoMappingPage()
@@ -325,6 +327,25 @@ class JHCISEnhancedController
         }
         
         include __DIR__ . '/../Views/jhcis/auto_mapping.php';
+    }
+
+    /**
+     * Drug Mapping Management Page (List/Manual)
+     * GET /admin/jhcis/mapping
+     */
+    public function mappingPage()
+    {
+        $hospitalId = $_GET['hospital_id'] ?? null;
+        include __DIR__ . '/../Views/jhcis/drug_mapping.php';
+    }
+
+    /**
+     * Unmapped Drugs Page
+     * GET /admin/jhcis/unmapped-drugs
+     */
+    public function unmappedDrugs()
+    {
+        include __DIR__ . '/../Views/jhcis/unmapped_drugs.php';
     }
     
     /**
@@ -551,12 +572,7 @@ class JHCISEnhancedController
     public function reportsPage()
     {
         $hospitalId = $_GET['hospital_id'] ?? null;
-        
-        if (!$hospitalId) {
-            header('Location: /admin/jhcis/dashboard');
-            return;
-        }
-        
+        // If no hospital ID, we show the comparison report by default
         include __DIR__ . '/../Views/jhcis/reports.php';
     }
     
@@ -566,16 +582,29 @@ class JHCISEnhancedController
      */
     public function generateReport()
     {
-        $type = $_POST['type'] ?? 'performance';
-        $hospitalId = $_POST['hospital_id'] ?? null;
-        
-        if (!$hospitalId) {
-            APIResponse::error('Hospital ID required', 400);
-            return;
-        }
+        // Start output buffering to catch any unexpected output
+        ob_start();
         
         try {
+            header('Content-Type: application/json');
+            
+            $type = $_POST['type'] ?? 'performance';
+            $hospitalId = $_POST['hospital_id'] ?? null;
+            
+            // Only require hospital_id for single-hospital reports
+            $requiresHospitalId = !in_array($type, ['multi_hospital', 'consumption']);
+            
+            if ($requiresHospitalId && !$hospitalId) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Hospital ID required for this report type'
+                ]);
+                exit;
+            }
+            
             $reporter = new JHCISReportGenerator();
+            $report = null;
             
             switch ($type) {
                 case 'performance':
@@ -592,16 +621,53 @@ class JHCISEnhancedController
                     $report = $reporter->generateExecutiveSummary($hospitalId);
                     break;
                     
+                case 'multi_hospital':
+                    $report = $reporter->generateMultiHospitalComparisonReport();
+                    break;
+
+                case 'consumption':
+                    $fromDate = $_POST['from_date'] ?? date('Y-m-d', strtotime('-30 days'));
+                    $toDate = $_POST['to_date'] ?? date('Y-m-d');
+                    $report = $reporter->generateConsolidatedConsumptionReport($fromDate, $toDate);
+                    break;
+                    
                 default:
-                    APIResponse::error('Invalid report type', 400);
-                    return;
+                    ob_end_clean();
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Invalid report type: ' . $type
+                    ]);
+                    exit;
             }
             
-            APIResponse::success($report);
+            // Clean any unexpected output
+            ob_end_clean();
             
+            echo json_encode([
+                'success' => true,
+                'data' => $report,
+                'type' => $type
+            ]);
+            
+        } catch (\PDOException $e) {
+            ob_end_clean();
+            error_log("Database error in generateReport: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Database error: ' . $e->getMessage(),
+                'error_type' => 'database'
+            ]);
         } catch (\Exception $e) {
-            APIResponse::error($e->getMessage(), 500);
+            ob_end_clean();
+            error_log("Error in generateReport: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error_type' => 'general',
+                'trace' => $e->getTraceAsString()
+            ]);
         }
+        exit;
     }
     
     /**
@@ -673,5 +739,212 @@ class JHCISEnhancedController
             ]);
         }
         exit;
+    }
+
+    /**
+     * GET /api/jhcis/mapping/stats
+     */
+    public function getMappingStats()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $hospitalId = $_GET['hospital_id'] ?? null;
+            
+            // Get default hospital if not provided
+            if (!$hospitalId) {
+                $hStmt = $db->query("SELECT id FROM jhcis_hospitals WHERE is_active = 1 LIMIT 1");
+                $hospitalId = $hStmt->fetchColumn();
+            }
+            
+            $hospitalName = "ระบบ JHCIS";
+            $connectionStatus = false;
+            
+            if ($hospitalId) {
+                $hStmt = $db->prepare("SELECT name FROM jhcis_hospitals WHERE id = ?");
+                $hStmt->execute([$hospitalId]);
+                $hospitalName = $hStmt->fetchColumn() ?: "ระบบ JHCIS";
+                
+                try {
+                    $test = \App\Services\JHCIS\JHCISConnectionPool::testConnection($hospitalId);
+                    $connectionStatus = $test['success'];
+                } catch (\Exception $e) {
+                    $connectionStatus = false;
+                }
+            }
+            
+            $where = $hospitalId ? "WHERE hospital_id = " . (int)$hospitalId : "";
+            
+            $mapped = $db->query("SELECT COUNT(*) FROM jhcis_drug_mapping $where")->fetchColumn();
+            $total = $db->query("SELECT COUNT(*) FROM drugs")->fetchColumn();
+            $unmapped = $total - $mapped;
+            
+            echo json_encode([
+                'success' => true,
+                'mapped' => (int)$mapped,
+                'unmapped' => (int)$unmapped,
+                'total' => (int)$total,
+                'rate' => $total > 0 ? round(($mapped / $total) * 100, 2) : 0,
+                'connection' => [
+                    'status' => $connectionStatus,
+                    'hospital_name' => $hospitalName,
+                    'hospital_id' => $hospitalId
+                ]
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/jhcis/mapping/drugs
+     */
+    public function getDrugMappings()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $hospitalId = $_GET['hospital_id'] ?? null;
+            
+            $sql = "
+                SELECT 
+                    m.id,
+                    m.jhcis_drug_code,
+                    d.code as drug_code,
+                    d.name as drug_name,
+                    m.mapping_method as mapping_type,
+                    m.confidence_score,
+                    m.created_at as mapped_at,
+                    '' as mapped_by_name
+                FROM jhcis_drug_mapping m
+                INNER JOIN drugs d ON m.drugmuk_drug_id = d.id
+            ";
+            
+            if ($hospitalId) {
+                $sql .= " WHERE m.hospital_id = " . (int)$hospitalId;
+            }
+            
+            $sql .= " ORDER BY m.created_at DESC";
+            
+            $mappings = $db->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+            echo json_encode($mappings);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /api/jhcis/mapping/drugs
+     */
+    public function saveDrugMapping()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            
+            // Handle both JSON and Form data
+            $json = json_decode(file_get_contents('php://input'), true);
+            $data = $json ?: $_POST;
+            
+            $jhcisCode = $data['jhcis_drug_code'] ?? null;
+            $drugmukId = $data['drugmuk_drug_id'] ?? null;
+            $method = $data['mapping_type'] ?? 'manual';
+            $hospitalId = $data['hospital_id'] ?? 1;
+            
+            if (!$jhcisCode || !$drugmukId) {
+                echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+                return;
+            }
+            
+            // Check if exists
+            $stmt = $db->prepare("SELECT id FROM jhcis_drug_mapping WHERE jhcis_drug_code = ? AND hospital_id = ?");
+            $stmt->execute([$jhcisCode, $hospitalId]);
+            $existing = $stmt->fetch();
+            
+            if ($existing) {
+                $stmt = $db->prepare("
+                    UPDATE jhcis_drug_mapping 
+                    SET drugmuk_drug_id = ?, mapping_method = ?, confidence_score = 1.0, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$drugmukId, $method, $existing['id']]);
+                echo json_encode(['success' => true, 'message' => 'Updated existing mapping']);
+            } else {
+                $stmt = $db->prepare("
+                    INSERT INTO jhcis_drug_mapping (jhcis_drug_code, drugmuk_drug_id, mapping_method, confidence_score, hospital_id, created_at)
+                    VALUES (?, ?, ?, 1.0, ?, NOW())
+                ");
+                $stmt->execute([$jhcisCode, $drugmukId, $method, $hospitalId]);
+                echo json_encode(['success' => true, 'message' => 'Created new mapping']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * DELETE /api/jhcis/mapping/drugs/{id}
+     */
+    public function deleteDrugMapping($id)
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $stmt = $db->prepare("DELETE FROM jhcis_drug_mapping WHERE id = ?");
+            $stmt->execute([$id]);
+            echo json_encode(['success' => true, 'message' => 'Deleted mapping']);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/jhcis/unmapped-drugs
+     */
+    public function getUnmappedDrugs()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $hospitalId = $_GET['hospital_id'] ?? null;
+            
+            // If view exists use it, otherwise join
+            try {
+                $stmt = $db->query("SELECT * FROM v_unmapped_drugs LIMIT 100");
+                $drugs = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            } catch (\Exception $ex) {
+                // Fallback join (Assuming we want drugs from JHCIS that are NOT in mapping)
+                // This is complex because JHCIS data is external. 
+                // For now return empty or simple list from drugs table that are not mapped
+                $sql = "
+                    SELECT d.id, d.code, d.name
+                    FROM drugs d
+                    LEFT JOIN jhcis_drug_mapping m ON d.id = m.drugmuk_drug_id
+                    WHERE m.id IS NULL
+                    LIMIT 100
+                ";
+                $drugs = $db->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+            }
+            
+            echo json_encode($drugs);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/drugs (Simple list for dropdowns)
+     */
+    public function getDrugs()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $stmt = $db->query("SELECT id, code, name FROM drugs WHERE is_active = 1 ORDER BY name");
+            $drugs = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            echo json_encode($drugs);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 }

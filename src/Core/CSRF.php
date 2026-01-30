@@ -30,17 +30,28 @@ class CSRF
     /**
      * Validate CSRF token
      * 
-     * @param string|null $token
+     * @param string|null $token Token to validate
      * @return bool
      */
     public static function validateToken(?string $token): bool
     {
-        if (session_status() === PHP_SESSION_NONE) {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
         }
 
-        if (!isset($_SESSION['csrf_token']) || empty($token)) {
+        // Generate token if it doesn't exist
+        if (!isset($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = self::generateToken();
+        }
+
+        if (empty($token)) {
             return false;
+        }
+
+        // Handle case where header might be duplicated (comma separated)
+        if (strpos($token, ',') !== false) {
+            $parts = explode(',', $token);
+            $token = trim($parts[0]);
         }
 
         return hash_equals($_SESSION['csrf_token'], $token);

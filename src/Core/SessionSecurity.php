@@ -105,8 +105,6 @@ class SessionSecurity
     /**
      * Validate session fingerprint
      * 
-     * Prevents session hijacking by validating user agent and IP
-     * 
      * @return void
      */
     private static function validateFingerprint(): void
@@ -116,9 +114,18 @@ class SessionSecurity
         if (!isset($_SESSION['fingerprint'])) {
             $_SESSION['fingerprint'] = $fingerprint;
         } elseif ($_SESSION['fingerprint'] !== $fingerprint) {
-            // Fingerprint mismatch - possible session hijacking
-            self::destroy();
-            throw new \Exception('Session validation failed', 403);
+            // Fingerprint mismatch - log warning but don't destroy session
+            // This can happen legitimately due to browser updates, extensions, etc.
+            error_log("WARNING: Session fingerprint mismatch for user: " . ($_SESSION['username'] ?? 'unknown'));
+            error_log("Expected: " . $_SESSION['fingerprint']);
+            error_log("Received: " . $fingerprint);
+            
+            // Update fingerprint instead of destroying session
+            $_SESSION['fingerprint'] = $fingerprint;
+            
+            // Uncomment below to enforce strict validation (will log users out)
+            // self::destroy();
+            // throw new \Exception('Session validation failed', 403);
         }
     }
 

@@ -243,7 +243,8 @@
                 <a href="/subwarehouse">🏪 คลังย่อย</a>
                 <a href="/dispensing" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">💊 จ่ายยา</a>
                 <a href="/contracts">📄 สัญญา</a>
-                <a href="/admin/jhcis/dashboard" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">🔗 JHCIS</a>
+                <a href="/admin/jhcis/dashboard" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">🔗 JHCIS Dashboard</a>
+                <a href="/admin/jhcis/hospitals" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">🏥 จัดการ รพ.สต.</a>
                 <a href="/admin/jhcis/mapping" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">💊 Drug Mapping</a>
                 <a href="/jhcis-import" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">⬇️ Import JHCIS</a>
                 <a href="/jhcis-drugs" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">📋 รายการยา JHCIS</a>
@@ -264,6 +265,7 @@
                 <a href="/audit-trail" style="background: rgba(255,255,255,0.2);">📜 Audit Trail</a>
                 <a href="/settings/database" style="background: rgba(255,255,255,0.4); border: 1px solid white;">⚙️ ตั้งค่าระบบ</a>
                 <a href="/updates" style="background: rgba(255,255,255,0.2);">🔄 อัพเดท</a>
+                <a href="/admin/jhcis/api-debug" style="background: rgba(255,255,255,0.2);">🔍 JHCIS API Debug</a>
             </nav>
         </div>
 

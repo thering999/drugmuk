@@ -143,8 +143,8 @@ if (!isset($_SESSION['user_id'])) {
                 <a href="/settings/database" class="btn btn-secondary">
                     <span>⚙️</span><span>ตั้งค่าการเชื่อมต่อ</span>
                 </a>
-                <a href="/settings/database" class="btn" style="background: #3b82f6; color: white;">
-                    <span>🏥</span><span>จัดการหลาย รพ.สต.</span>
+                <a href="/admin/jhcis/hospitals" class="btn" style="background: #3b82f6; color: white;">
+                    <span>🏥</span><span>จัดการหลาย รพ.สต. (JHCIS)</span>
                 </a>
             </div>
         </div>

@@ -279,10 +279,21 @@ $router->post('/admin/jhcis/hospitals/sync-all', 'MultiJHCISController@syncAll')
 // ENHANCED JHCIS (VIEWS)
 $router->get('/admin/jhcis/dashboard', 'JHCISEnhancedController@dashboard');
 $router->get('/admin/jhcis/auto-mapping', 'JHCISEnhancedController@autoMappingPage');
-$router->get('/admin/jhcis/mapping', 'JHCISEnhancedController@autoMappingPage');
+$router->get('/admin/jhcis/mapping', 'JHCISEnhancedController@mappingPage');
 $router->get('/admin/jhcis/reconciliation', 'JHCISEnhancedController@reconciliationPage');
+$router->get('/admin/jhcis/unmapped-drugs', 'JHCISEnhancedController@unmappedDrugs');
 $router->get('/admin/jhcis/sync-settings', 'JHCISEnhancedController@syncSettingsPage');
 $router->get('/admin/jhcis/reports', 'JHCISEnhancedController@reportsPage');
+
+// JHCIS MAPPING API
+$router->get('/api/jhcis/mapping/stats', 'JHCISEnhancedController@getMappingStats');
+$router->get('/api/jhcis/mapping/drugs', 'JHCISEnhancedController@getDrugMappings');
+$router->post('/api/jhcis/mapping/drugs', 'JHCISEnhancedController@saveDrugMapping');
+$router->post('/api/jhcis/mapping/drugs/{id}', 'JHCISEnhancedController@deleteDrugMapping'); // For delete via _method
+$router->delete('/api/jhcis/mapping/drugs/{id}', 'JHCISEnhancedController@deleteDrugMapping');
+$router->get('/api/jhcis/unmapped-drugs', 'JHCISEnhancedController@getUnmappedDrugs');
+$router->post('/api/jhcis/mapping/auto-map', 'JHCISController@autoMapDrugs');
+$router->get('/api/drugs', 'JHCISEnhancedController@getDrugs');
 
 // JHCIS BASIC (DRUGS & IMPORT)
 $router->get('/jhcis-drugs', 'JHCISDrugListController@index');
@@ -378,6 +389,17 @@ $router->get('/api/safety/labs/{hn}', 'SafetyController@getLabs');
 
 // PHASE 4: LABEL ROUTES
 $router->get('/label/print/{dispense_id}/{item_id}', 'LabelController@printLabel');
+
+
+// MULTI-JHCIS HOSPITAL MANAGEMENT
+$router->get('/admin/jhcis/hospitals', 'MultiJHCISController@index');
+$router->get('/admin/jhcis/reports', 'MultiJHCISController@reports');
+$router->get('/admin/jhcis/api/hospitals', 'MultiJHCISController@getHospitalsAPI');
+$router->get('/admin/jhcis/api-debug', 'MultiJHCISController@apiDebug');
+$router->post('/admin/jhcis/hospitals/add', 'MultiJHCISController@addHospital');
+$router->post('/admin/jhcis/hospitals/update', 'MultiJHCISController@updateHospital');
+$router->post('/admin/jhcis/hospitals/delete', 'MultiJHCISController@deleteHospital');
+$router->post('/admin/jhcis/hospitals/sync-all', 'MultiJHCISController@syncAll');
 
 // PHASE 6: TELE-PHARMACY ROUTES
 $router->get('/tele-pharmacy/dashboard', 'TelepharmacyController@dashboard');

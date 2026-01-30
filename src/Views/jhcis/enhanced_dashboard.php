@@ -133,12 +133,12 @@
         <div class="dashboard-header">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div>
-                    <h1>🔗 JHCIS Integration Dashboard</h1>
-                    <p>จัดการการเชื่อมต่อและซิงค์ข้อมูลกับระบบ JHCIS</p>
+                    <h1>🔗 แดชบอร์ดการเชื่อมต่อ JHCIS</h1>
+                    <p>จัดการการเชื่อมต่อและซิงค์ข้อมูลกับระบบฐานข้อมูล JHCIS ของ รพ.สต.</p>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <a href="/settings/database" class="btn btn-secondary" style="background: white; color: #667eea; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                        🏥 ตั้งค่าการเชื่อมต่อ JHCIS
+                        🏥 ตั้งค่าฐานข้อมูล JHCIS
                     </a>
                     <a href="/dashboard" class="btn btn-secondary" style="background: white; color: #667eea; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
                         ← กลับหน้าหลัก
@@ -157,7 +157,7 @@
                     <div class="hospital-header">
                         <div class="hospital-name"><?= htmlspecialchars($hospital['name']) ?></div>
                         <span class="status-badge <?= $isActive ? 'status-active' : 'status-inactive' ?>">
-                            <?= $isActive ? 'Active' : 'Inactive' ?>
+                            <?= $isActive ? 'เปิดรวมงาน' : 'ปิดรวมงาน' ?>
                         </span>
                     </div>
 
@@ -168,25 +168,27 @@
                             </div>
                         <?php else: ?>
                             <div class="metric-row">
-                                <span class="metric-label">📊 Sync Success Rate:</span>
+                                <span class="metric-label">📊 อัตราการ Sync สำเร็จ:</span>
                                 <span class="metric-value <?= $summary['sync_performance']['success_rate'] >= 95 ? 'success-rate' : 'warning-rate' ?>">
                                     <?= $summary['sync_performance']['success_rate'] ?>%
                                 </span>
                             </div>
 
                             <div class="metric-row">
-                                <span class="metric-label">🔄 Total Syncs:</span>
+                                <span class="metric-label">🔄 จำนวนรอบ Sync:</span>
                                 <span class="metric-value"><?= number_format($summary['sync_performance']['total_syncs']) ?></span>
                             </div>
 
                             <div class="metric-row">
-                                <span class="metric-label">📝 Records Synced:</span>
+                                <span class="metric-label">📝 รายการที่ Sync แล้ว:</span>
                                 <span class="metric-value"><?= number_format($summary['sync_performance']['total_records']) ?></span>
                             </div>
 
                             <div class="metric-row">
-                                <span class="metric-label">💊 Mapped Drugs:</span>
-                                <span class="metric-value"><?= number_format($summary['data_quality']['mapped_drugs']) ?></span>
+                                <span class="metric-label">💊 ยาที่จับคู่แล้ว:</span>
+                                <a href="/admin/jhcis/mapping?hospital_id=<?= $hospital['id'] ?>" class="metric-value" style="text-decoration: none; color: #667eea; border-bottom: 1px dashed #667eea;">
+                                    <?= number_format($summary['data_quality']['mapped_drugs']) ?>
+                                </a>
                             </div>
 
                             <?php if ($summary['last_sync']): ?>
@@ -201,18 +203,21 @@
 
                         <div class="action-buttons">
                             <button onclick="testConnection(event, <?= $hospital['id'] ?>)" class="btn btn-primary">
-                                🔍 Test Connection
+                                🔍 ทดสอบการเชื่อมต่อ
                             </button>
                             <button onclick="syncNow(event, <?= $hospital['id'] ?>)" class="btn btn-secondary">
-                                🔄 Sync Now
+                                🔄 ซิงค์ตอนนี้
                             </button>
                         </div>
                         <div class="action-buttons">
                             <a href="/admin/jhcis/auto-mapping?hospital_id=<?= $hospital['id'] ?>" class="btn btn-secondary">
-                                🤖 Auto Map
+                                🤖 จับคู่อัตโนมัติ
+                            </a>
+                            <a href="/admin/jhcis/mapping?hospital_id=<?= $hospital['id'] ?>" class="btn btn-secondary">
+                                🔗 จัดการการจับคู่
                             </a>
                             <a href="/admin/jhcis/reconciliation?hospital_id=<?= $hospital['id'] ?>" class="btn btn-secondary">
-                                📊 Reconcile
+                                📊 ตรวจสอบยอดสต็อก
                             </a>
                         </div>
                         <div class="action-buttons">
@@ -220,7 +225,7 @@
                                 ⚙️ ตั้งค่าการเชื่อมต่อ
                             </a>
                             <a href="/admin/jhcis/reports?hospital_id=<?= $hospital['id'] ?>" class="btn btn-secondary">
-                                📈 Reports
+                                📈 รายงานการซิงค์
                             </a>
                         </div>
                     <?php else: ?>
@@ -233,7 +238,7 @@
         </div>
 
         <div class="alert-section">
-            <h2>🔔 Recent Alerts</h2>
+            <h2>🔔 การแจ้งเตือนล่าสุด</h2>
             <?php
                 $alertService = new \App\Services\JHCIS\JHCISAlertService();
                 $recentAlerts = $alertService->getActiveAlerts(null, 10);

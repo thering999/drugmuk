@@ -148,27 +148,93 @@
             </div>
         </div>
 
+
         <div class="report-selector">
             <div class="report-tabs">
-                <button class="tab active" onclick="switchTab('performance')">
+                <button class="tab active" id="tab-multi-hospital" onclick="switchTab('multi_hospital')">
+                    🏢 เปรียบเทียบ รพ.สต.
+                </button>
+                <button class="tab" id="tab-performance" onclick="switchTab('performance')">
                     📊 Sync Performance
                 </button>
-                <button class="tab" onclick="switchTab('quality')">
+                <button class="tab" id="tab-quality" onclick="switchTab('quality')">
                     ✅ Data Quality
                 </button>
-                <button class="tab" onclick="switchTab('summary')">
+                <button class="tab" id="tab-summary" onclick="switchTab('summary')">
                     📋 Executive Summary
+                </button>
+                <button class="tab" id="tab-consumption" onclick="switchTab('consumption')">
+                    💊 วิเคราะห์ยอดใช้ยา
                 </button>
             </div>
 
-            <div style="display: flex; gap: 15px; align-items: center;">
-                <div style="flex: 1;">
+
+
+
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <?php if (isset($debugError)): ?>
+                    <div class="alert-error-debug" style="width: 100%; padding: 15px; background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; color: #991b1b;">
+                        <strong><?= $debugError ?></strong>
+                        <br><small>Database connection seems OK, but jhcis_hospitals table is empty or query failed.</small>
+                    </div>
+                <?php endif; ?>
+                
+                <div style="flex: 1; min-width: 200px;" id="hospitalSelector">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                        🏥 เลือก รพ.สต. <span style="color: #ef4444;" id="requiredIndicator">*</span>
+                    </label>
+                    
+                    <!-- DEBUG INFO -->
+                    <?php 
+                    echo "<!-- DEBUG: Hospitals count = " . count($hospitals ?? []) . " -->\n";
+                    if (!empty($hospitals)) {
+                        foreach ($hospitals as $idx => $h) {
+                            echo "<!-- DEBUG Hospital[$idx]: " . json_encode($h) . " -->\n";
+                        }
+                    }
+                    ?>
+                    
+                    <select id="hospitalId" class="form-control" 
+                            style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 5px;">
+                        <option value="">-- เลือก รพ.สต. --</option>
+                        <?php if (empty($hospitals)): ?>
+                            <option value="" disabled>ยังไม่มี รพ.สต. ในระบบ - กรุณาเพิ่มที่หน้า Hospital Management</option>
+                        <?php else: ?>
+                            <?php foreach ($hospitals as $h): ?>
+                                <?php 
+                                    // Use PCU CODE if available and not empty/dash, otherwise use regular code
+                                    $pcucode = trim($h['pcucode'] ?? '');
+                                    $code = trim($h['code'] ?? '');
+                                    
+                                    // If pcucode is empty, null, or just a dash, use regular code
+                                    if (empty($pcucode) || $pcucode === '-') {
+                                        $displayCode = $code;
+                                    } else {
+                                        $displayCode = $pcucode;
+                                    }
+                                ?>
+                                <option value="<?= $h['id'] ?>" 
+                                        <?= ($hospitalId == $h['id']) ? 'selected' : '' ?>
+                                        style="<?= empty($h['is_active']) ? 'color: #9ca3af;' : '' ?>">
+                                    <?= htmlspecialchars($h['name']) ?><?= !empty($displayCode) ? ' (' . htmlspecialchars($displayCode) . ')' : '' ?>
+                                    <?= empty($h['is_active']) ? ' [ปิดใช้งาน]' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                    <?php if (empty($hospitals)): ?>
+                        <small style="color: #ef4444; display: block; margin-top: 5px;">
+                            ⚠️ <a href="/admin/jhcis/hospitals" style="color: #3b82f6;">คลิกที่นี่</a> เพื่อเพิ่ม รพ.สต. ก่อน
+                        </small>
+                    <?php endif; ?>
+                </div>
+                <div style="flex: 1; min-width: 150px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">From Date</label>
                     <input type="date" id="fromDate" class="form-control" 
                            value="<?= date('Y-m-d', strtotime('-30 days')) ?>"
                            style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 5px;">
                 </div>
-                <div style="flex: 1;">
+                <div style="flex: 1; min-width: 150px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">To Date</label>
                     <input type="date" id="toDate" class="form-control" 
                            value="<?= date('Y-m-d') ?>"
@@ -177,7 +243,7 @@
                 <div>
                     <label style="display: block; margin-bottom: 5px;">&nbsp;</label>
                     <button class="btn btn-primary" onclick="generateReport()">
-                        📊 Generate Report
+                        📊 สร้างรายงาน
                     </button>
                 </div>
                 <div>
@@ -258,7 +324,7 @@
                 </div>
             </div>
 
-            <!-- Summary Report -->
+            <!-- Executive Summary Report -->
             <div id="summaryReport" style="display: none;">
                 <h2>📋 Executive Summary</h2>
                 
@@ -270,12 +336,56 @@
                     <div id="alertsList"></div>
                 </div>
             </div>
+                </div>
+            </div>
+
+            <!-- Multi-Hospital Report -->
+            <div id="multiHospitalReport" style="display: none;">
+                <h2>🏢 รายงานเปรียบเทียบการเชื่อมต่อ รพ.สต.</h2>
+                
+                <div class="metric-grid" id="multiMetrics">
+                </div>
+
+                <div class="chart-container">
+                    <h3>สถานะการเชื่อมต่อแยกตาม รพ.สต.</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>รหัส</th>
+                                <th>ชื่อ รพ.สต.</th>
+                                <th>PCU Code</th>
+                                <th>จำนวนยาที่ Map แล้ว</th>
+                                <th>ซิงค์สำเร็จล่าสุด</th>
+                                <th>จำนวนเรคคอร์ด (30 วัน)</th>
+                                <th>ข้อผิดพลาด (7 วัน)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="multiBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Consumption Report -->
+            <div id="consumptionReport" style="display: none;">
+                <h2>💊 รายงานวิเคราะห์ยอดใช้ยารวมทุก รพ.สต.</h2>
+                <p>สรุปยอดจ่ายยา (Dispensing) เปรียบเทียบตามแต่ละแห่ง</p>
+                
+                <div class="chart-container" style="overflow-x: auto;">
+                    <table id="consumptionTable">
+                        <thead id="consumptionHead">
+                        </thead>
+                        <tbody id="consumptionBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const hospitalId = <?= $_GET['hospital_id'] ?? 0 ?>;
-        let currentTab = 'performance';
+        const selectedHospitalId = <?= json_encode($_GET['hospital_id'] ?? null) ?>;
+        let currentTab = 'multi_hospital';
         let currentReport = null;
 
         function switchTab(tab) {
@@ -283,29 +393,134 @@
             
             // Update tab buttons
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            document.getElementById('tab-' + tab.replace('_', '-')).classList.add('active');
+            
+            // Show/hide hospital selector based on report type
+            const hospitalSelector = document.getElementById('hospitalSelector');
+            const requiredIndicator = document.getElementById('requiredIndicator');
+            
+            if (['multi_hospital', 'consumption'].includes(tab)) {
+                // These reports don't need hospital selection
+                hospitalSelector.style.display = 'none';
+            } else {
+                // Single-hospital reports require selection
+                hospitalSelector.style.display = 'block';
+            }
             
             // Show/hide reports
             document.getElementById('performanceReport').style.display = 'none';
             document.getElementById('qualityReport').style.display = 'none';
             document.getElementById('summaryReport').style.display = 'none';
+            document.getElementById('multiHospitalReport').style.display = 'none';
+            document.getElementById('consumptionReport').style.display = 'none';
             
             if (currentReport) {
                 displayReport(currentReport);
+            } else {
+                generateReport();
             }
         }
+
+        // Auto-include CSRF token in all AJAX requests (MUST BE FIRST!)
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        if (csrfToken) {
+            // Fetch API
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                const method = (options.method || 'GET').toUpperCase();
+                if (method !== 'GET') {
+                    options.headers = options.headers || {};
+                    options.headers['X-CSRF-Token'] = csrfToken;
+                }
+                return originalFetch(url, options);
+            };
+        }
+
+        // Initialize: hide hospital selector for multi_hospital tab
+        document.addEventListener('DOMContentLoaded', () => {
+            const hospitalSelector = document.getElementById('hospitalSelector');
+            if (hospitalSelector && currentTab === 'multi_hospital') {
+                hospitalSelector.style.display = 'none';
+            }
+        });
+
+        // Don't auto-generate on page load - wait for user to click
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if hospitals need to be loaded
+            const selector = document.getElementById('hospitalId');
+            
+            // Check if:
+            // 1. Only default option exists (length <= 1)
+            // 2. OR The "No hospitals" placeholder exists (length == 2 and second option is disabled)
+            const needsLoading = selector && (
+                selector.options.length <= 1 || 
+                (selector.options.length === 2 && selector.options[1].disabled && selector.options[1].text.includes('ยังไม่มี'))
+            );
+
+            if (needsLoading) {
+                try {
+                    console.log('Fetching hospitals via API...');
+                    const response = await fetch('/admin/jhcis/api/hospitals');
+                    const result = await response.json();
+                    
+                    if (result.success && result.data && result.data.length > 0) {
+                        // Clear existing options except the first one
+                        selector.innerHTML = '<option value="">-- เลือก รพ.สต. --</option>';
+                        
+                        result.data.forEach(h => {
+                            const displayCode = (h.pcucode && h.pcucode !== '-' && h.pcucode.trim() !== '') ? h.pcucode : h.code;
+                            const option = document.createElement('option');
+                            option.value = h.id;
+                            option.textContent = `${h.name} (${displayCode})`;
+                            if (!h.is_active) {
+                                option.style.color = '#9ca3af';
+                                option.textContent += ' [ปิดใช้งาน]';
+                            }
+                            selector.appendChild(option);
+                        });
+                        
+                        // Hide error box if present
+                        const errorBox = document.querySelector('.alert-error-debug');
+                        if (errorBox) errorBox.style.display = 'none';
+                        
+                        // Also hide the "click here to add" warning under dropdown
+                        const warningSmall = selector.nextElementSibling;
+                        if (warningSmall && warningSmall.tagName === 'SMALL') {
+                            warningSmall.style.display = 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load hospitals via API:', e);
+                }
+            }
+        });
 
         async function generateReport() {
             const type = currentTab;
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
+            const hospitalId = document.getElementById('hospitalId').value; // Read from dropdown
+
+            // Hide previous reports
+            document.querySelectorAll('.report-section').forEach(section => {
+                section.style.display = 'none';
+            });
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('reportContent').style.display = 'none';
 
             try {
                 const formData = new FormData();
-                formData.append('hospital_id', hospitalId);
+                
+                // Only add hospital_id for single-hospital reports
+                if (!['multi_hospital', 'consumption'].includes(type)) {
+                    if (!hospitalId) {
+                        throw new Error('กรุณาเลือก รพ.สต. ก่อนสร้างรายงาน');
+                    }
+                    formData.append('hospital_id', hospitalId);
+                }
+                
                 formData.append('type', type);
                 formData.append('from_date', fromDate);
                 formData.append('to_date', toDate);
@@ -315,16 +530,32 @@
                     body: formData
                 });
 
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned invalid response (not JSON). Check console for details.');
+                }
+
                 const data = await response.json();
 
                 if (data.success) {
                     currentReport = data.data;
                     displayReport(data.data);
                 } else {
-                    alert('Error: ' + data.message);
+                    let errorMsg = 'Error: ' + data.message;
+                    if (data.error_type) {
+                        errorMsg += '\nType: ' + data.error_type;
+                    }
+                    if (data.trace && confirm('Show detailed error trace?')) {
+                        console.error('Error trace:', data.trace);
+                    }
+                    alert(errorMsg);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                console.error('Generate report error:', error);
+                alert('เกิดข้อผิดพลาด: ' + error.message);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -339,7 +570,73 @@
                 displayQualityReport(report);
             } else if (currentTab === 'summary') {
                 displaySummaryReport(report);
+            } else if (currentTab === 'multi_hospital') {
+                displayMultiHospitalReport(report);
+            } else if (currentTab === 'consumption') {
+                displayConsumptionReport(report);
             }
+        }
+
+        function displayConsumptionReport(report) {
+            document.getElementById('consumptionReport').style.display = 'block';
+            
+            // Generate header
+            let head = '<tr><th>ชื่อยา</th>';
+            report.hospitals.forEach(h => {
+                head += `<th style="text-align:center">${h.name}<br><small>${h.code}</small></th>`;
+            });
+            head += '<th style="text-align:center; background:#f3f4f6">รวมทั้งหมด</th></tr>';
+            document.getElementById('consumptionHead').innerHTML = head;
+
+            // Generate body
+            let body = '';
+            (report.data || []).forEach(item => {
+                body += `<tr><td><strong>${item.name}</strong></td>`;
+                report.hospitals.forEach(h => {
+                    const qty = item.breakdown[h.code] || 0;
+                    body += `<td style="text-align:center; ${qty > 0 ? 'background:#ecfdf5' : ''}">${qty.toLocaleString()}</td>`;
+                });
+                body += `<td style="text-align:center; font-weight:bold; background:#f3f4f6">${item.total.toLocaleString()}</td></tr>`;
+            });
+            document.getElementById('consumptionBody').innerHTML = body;
+        }
+
+        function displayMultiHospitalReport(report) {
+            document.getElementById('multiHospitalReport').style.display = 'block';
+            
+            const metrics = `
+                <div class="metric-card">
+                    <div class="metric-value">${report.summary.total_hospitals}</div>
+                    <div class="metric-label">รพ.สต. ทั้งหมด</div>
+                </div>
+                <div class="metric-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="metric-value">${report.summary.total_mappings.toLocaleString()}</div>
+                    <div class="metric-label">จำนวนการจับคู่ยารวม</div>
+                </div>
+                <div class="metric-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    <div class="metric-value">${report.summary.avg_mappings}</div>
+                    <div class="metric-label">ค่าเฉลี่ยการ Map ต่อแห่ง</div>
+                </div>
+            `;
+            document.getElementById('multiMetrics').innerHTML = metrics;
+
+            const tbody = document.getElementById('multiBody');
+            tbody.innerHTML = '';
+            (report.hospitals || []).forEach(h => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${h.code}</td>
+                        <td><strong>${h.name}</strong></td>
+                        <td><code>${(h.pcucode && h.pcucode !== '-' && String(h.pcucode).trim() !== '') ? h.pcucode : h.code}</code></td>
+                        <td class="text-center">${h.mapped_count}</td>
+                        <td>${h.last_success_sync || 'ยังไม่เคยซิงค์'}</td>
+                        <td>${(h.records_30d || 0).toLocaleString()}</td>
+                        <td style="color: ${h.failures_7d > 0 ? '#ef4444' : '#10b981'};">
+                            ${h.failures_7d}
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
         function displayPerformanceReport(report) {
@@ -461,28 +758,11 @@
             const type = currentTab === 'performance' ? 'sync_logs' : 'mappings';
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
+            // Get value from dropdown explicitly
+            const hId = document.getElementById('hospitalId').value;
             
-            window.location.href = `/admin/jhcis/export?type=${type}&hospital_id=${hospitalId}&from_date=${fromDate}&to_date=${toDate}`;
+            window.location.href = `/admin/jhcis/export?type=${type}&hospital_id=${hId}&from_date=${fromDate}&to_date=${toDate}`;
         }
-    </script>
-    <script>
-        // Auto-include CSRF token in all AJAX requests
-        document.addEventListener('DOMContentLoaded', function() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            
-            if (csrfToken) {
-                // Fetch API
-                const originalFetch = window.fetch;
-                window.fetch = function(url, options = {}) {
-                    const method = (options.method || 'GET').toUpperCase();
-                    if (method !== 'GET') {
-                        options.headers = options.headers || {};
-                        options.headers['X-CSRF-Token'] = csrfToken;
-                    }
-                    return originalFetch(url, options);
-                };
-            }
-        });
     </script>
 </body>
 </html>
