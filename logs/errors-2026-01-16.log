@@ -1,0 +1,1 @@
+[2026-01-16 07:21:23] [ERROR] Session validation failed {"exception":"Exception","file":"\/var\/www\/html\/src\/Core\/SessionSecurity.php","line":121,"trace":"#0 \/var\/www\/html\/src\/Core\/SessionSecurity.php(51): App\\Core\\SessionSecurity::validateFingerprint()\n#1 \/var\/www\/html\/public\/index.php(55): App\\Core\\SessionSecurity::start()\n#2 {main}"}

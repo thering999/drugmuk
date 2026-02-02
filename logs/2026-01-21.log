@@ -1,0 +1,5 @@
+[2026-01-21 08:05:20] [INFO] Starting inventory reconciliation {"hospital_id":1,"tolerance":5}
+[2026-01-21 08:05:20] [INFO] Reconciliation completed {"hospital_id":1,"total_checked":0,"discrepancies_found":0}
+[2026-01-21 08:05:33] [INFO] Starting auto drug mapping {"hospital_id":1,"min_confidence":0.8}
+[2026-01-21 08:05:33] [INFO] JHCIS connection established {"hospital_id":1,"host":"127.0.0.1"}
+[2026-01-21 08:05:38] [INFO] Auto mapping completed {"hospital_id":1,"total_unmapped":1000,"suggestions":137}
