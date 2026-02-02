@@ -131,7 +131,7 @@ cat database/complete_schema.sql | docker-compose exec -T db mysql -u root -p123
 
 **Quick Links:**
 - 🏠 Dashboard: http://localhost:8080/dashboard
-- 💊 Drugs: http://localhost:8080/drugs
+- 💊 Drugs: http://localhost:8080/jhcis-drugs
 - 📦 Inventory: http://localhost:8080/inventory
 - 🛒 Orders: http://localhost:8080/orders
 - 💉 Dispensing: http://localhost:8080/dispensing
