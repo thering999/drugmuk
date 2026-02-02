@@ -1,8 +1,8 @@
 <?php
 
-namespace Drugmuk\Models;
+namespace App\Models;
 
-use Drugmuk\Core\Database;
+use App\Core\Database;
 use PDO;
 
 class Hospital
@@ -19,7 +19,7 @@ class Hospital
      */
     public function getAll($activeOnly = false)
     {
-        $sql = "SELECT * FROM hospitals";
+        $sql = "SELECT * FROM jhcis_hospitals";
         if ($activeOnly) {
             $sql .= " WHERE is_active = 1";
         }
@@ -33,7 +33,7 @@ class Hospital
      */
     public function findById($id)
     {
-        $sql = "SELECT * FROM hospitals WHERE id = ?";
+        $sql = "SELECT * FROM jhcis_hospitals WHERE id = ?";
         return $this->db->query($sql, [$id])->fetch(PDO::FETCH_ASSOC);
     }
     
@@ -42,7 +42,7 @@ class Hospital
      */
     public function findByCode($code)
     {
-        $sql = "SELECT * FROM hospitals WHERE code = ?";
+        $sql = "SELECT * FROM jhcis_hospitals WHERE code = ?";
         return $this->db->query($sql, [$code])->fetch(PDO::FETCH_ASSOC);
     }
     
@@ -52,11 +52,13 @@ class Hospital
     public function create($data)
     {
         // Encrypt password before storing
-        if (isset($data['jhcis_password'])) {
-            $data['jhcis_password'] = $this->encryptPassword($data['jhcis_password']);
+        if (isset($data['db_pass'])) {
+            $data['db_pass'] = $this->encryptPassword($data['db_pass']);
         }
         
-        return $this->db->insert('hospitals', $data);
+        // Ensure keys match table columns
+        // Table columns: code, name, db_host, db_port, db_name, db_user, db_pass, pcucode, is_active
+        return $this->db->insert('jhcis_hospitals', $data);
     }
     
     /**
@@ -65,13 +67,13 @@ class Hospital
     public function update($id, $data)
     {
         // Encrypt password if provided
-        if (isset($data['jhcis_password']) && !empty($data['jhcis_password'])) {
-            $data['jhcis_password'] = $this->encryptPassword($data['jhcis_password']);
+        if (isset($data['db_pass']) && !empty($data['db_pass'])) {
+            $data['db_pass'] = $this->encryptPassword($data['db_pass']);
         } else {
-            unset($data['jhcis_password']); // Don't update if empty
+            unset($data['db_pass']); // Don't update if empty or not provided
         }
         
-        return $this->db->update('hospitals', $data, ['id' => $id]);
+        return $this->db->update('jhcis_hospitals', $data, ['id' => $id]);
     }
     
     /**
@@ -79,7 +81,7 @@ class Hospital
      */
     public function delete($id)
     {
-        return $this->db->delete('hospitals', ['id' => $id]);
+        return $this->db->delete('jhcis_hospitals', ['id' => $id]);
     }
     
     /**
@@ -96,11 +98,17 @@ class Hospital
         
         try {
             // Decrypt password
-            $password = $this->decryptPassword($hospital['jhcis_password']);
+            $password = $this->decryptPassword($hospital['db_pass']);
+            
+            // Handle localhost/docker special case
+            $host = $hospital['db_host'];
+            if ($host === 'localhost' || $host === '127.0.0.1') {
+                $host = 'host.docker.internal';
+            }
             
             // Create PDO connection
-            $dsn = "mysql:host={$hospital['jhcis_host']};port={$hospital['jhcis_port']};dbname={$hospital['jhcis_database']};charset=utf8mb4";
-            $pdo = new PDO($dsn, $hospital['jhcis_username'], $password, [
+            $dsn = "mysql:host={$host};port={$hospital['db_port']};dbname={$hospital['db_name']};charset=utf8mb4";
+            $pdo = new PDO($dsn, $hospital['db_user'], $password, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_TIMEOUT => 5
             ]);
@@ -110,20 +118,14 @@ class Hospital
             
             $responseTime = round((microtime(true) - $startTime) * 1000);
             
-            // Update hospital status
-            $this->db->update('hospitals', [
-                'is_connected' => 1,
-                'last_connection_test' => date('Y-m-d H:i:s'),
-                'last_connection_status' => 'success'
-            ], ['id' => $id]);
-            
-            // Log connection test
-            $this->db->insert('hospital_connection_tests', [
-                'hospital_id' => $id,
-                'test_type' => 'manual',
-                'status' => 'success',
-                'response_time_ms' => $responseTime
-            ]);
+            // Update hospital status (if column exists, otherwise skip)
+            try {
+                $this->db->update('jhcis_hospitals', [
+                    'last_sync_at' => date('Y-m-d H:i:s') // Using last_sync_at as connection test timestamp
+                ], ['id' => $id]);
+            } catch (\Exception $e) {
+                // Ignore if column doesn't exist
+            }
             
             return [
                 'success' => true,
@@ -132,21 +134,6 @@ class Hospital
             ];
             
         } catch (\Exception $e) {
-            // Update hospital status
-            $this->db->update('hospitals', [
-                'is_connected' => 0,
-                'last_connection_test' => date('Y-m-d H:i:s'),
-                'last_connection_status' => 'failed'
-            ], ['id' => $id]);
-            
-            // Log connection test
-            $this->db->insert('hospital_connection_tests', [
-                'hospital_id' => $id,
-                'test_type' => 'manual',
-                'status' => 'failed',
-                'error_message' => $e->getMessage()
-            ]);
-            
             return [
                 'success' => false,
                 'message' => 'Connection failed: ' . $e->getMessage()
@@ -168,64 +155,20 @@ class Hospital
             throw new \Exception('Hospital is not active');
         }
         
-        $password = $this->decryptPassword($hospital['jhcis_password']);
+        $password = $this->decryptPassword($hospital['db_pass']);
         
-        $dsn = "mysql:host={$hospital['jhcis_host']};port={$hospital['jhcis_port']};dbname={$hospital['jhcis_database']};charset=utf8mb4";
+        // Handle localhost/docker special case
+        $host = $hospital['db_host'];
+        if ($host === 'localhost' || $host === '127.0.0.1') {
+            $host = 'host.docker.internal';
+        }
         
-        return new PDO($dsn, $hospital['jhcis_username'], $password, [
+        $dsn = "mysql:host={$host};port={$hospital['db_port']};dbname={$hospital['db_name']};charset=utf8mb4";
+        
+        return new PDO($dsn, $hospital['db_user'], $password, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
-    }
-    
-    /**
-     * Get sync summary for all hospitals
-     */
-    public function getSyncSummary()
-    {
-        $sql = "SELECT * FROM v_hospital_sync_summary ORDER BY code ASC";
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    /**
-     * Get sync logs for hospital
-     */
-    public function getSyncLogs($hospitalId, $limit = 50)
-    {
-        $sql = "SELECT * FROM hospital_sync_logs 
-                WHERE hospital_id = ? 
-                ORDER BY created_at DESC 
-                LIMIT ?";
-        return $this->db->query($sql, [$hospitalId, $limit])->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    /**
-     * Create sync log
-     */
-    public function createSyncLog($data)
-    {
-        return $this->db->insert('hospital_sync_logs', $data);
-    }
-    
-    /**
-     * Update sync log
-     */
-    public function updateSyncLog($id, $data)
-    {
-        return $this->db->update('hospital_sync_logs', $data, ['id' => $id]);
-    }
-    
-    /**
-     * Get active hospitals for auto-sync
-     */
-    public function getActiveForSync()
-    {
-        $sql = "SELECT * FROM hospitals 
-                WHERE is_active = 1 
-                AND auto_sync_enabled = 1 
-                AND is_connected = 1
-                ORDER BY code ASC";
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**
@@ -242,31 +185,32 @@ class Hospital
     /**
      * Decrypt password
      */
-    private function decryptPassword($encrypted)
+    public function decryptPassword($encrypted)
     {
+        // Check if password looks encrypted (Starts with iv length base64?)
+        // Or simpler: just try to decrypt. If fails, return original (migration path)
+        
         if (empty($encrypted)) {
             return '';
         }
         
         $key = getenv('ENCRYPTION_KEY') ?: 'drugmuk_default_key_change_this';
         $data = base64_decode($encrypted);
+        
+        if ($data === false || strlen($data) < 17) {
+            // Not a valid encrypted string, assume plain text (legacy support)
+            return $encrypted;
+        }
+        
         $iv = substr($data, 0, 16);
-        $encrypted = substr($data, 16);
-        return openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
-    }
-    
-    /**
-     * Get statistics
-     */
-    public function getStatistics()
-    {
-        return [
-            'total_hospitals' => $this->db->query("SELECT COUNT(*) as count FROM hospitals")->fetch()['count'],
-            'active_hospitals' => $this->db->query("SELECT COUNT(*) as count FROM hospitals WHERE is_active = 1")->fetch()['count'],
-            'connected_hospitals' => $this->db->query("SELECT COUNT(*) as count FROM hospitals WHERE is_connected = 1")->fetch()['count'],
-            'auto_sync_enabled' => $this->db->query("SELECT COUNT(*) as count FROM hospitals WHERE auto_sync_enabled = 1")->fetch()['count'],
-            'total_syncs_today' => $this->db->query("SELECT COUNT(*) as count FROM hospital_sync_logs WHERE DATE(created_at) = CURDATE()")->fetch()['count'],
-            'successful_syncs_today' => $this->db->query("SELECT COUNT(*) as count FROM hospital_sync_logs WHERE DATE(created_at) = CURDATE() AND status = 'success'")->fetch()['count']
-        ];
+        $encryptedStr = substr($data, 16);
+        $decrypted = openssl_decrypt($encryptedStr, 'AES-256-CBC', $key, 0, $iv);
+        
+        if ($decrypted === false) {
+             // Decryption failed, return original
+             return $encrypted;
+        }
+        
+        return $decrypted;
     }
 }

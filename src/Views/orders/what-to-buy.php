@@ -127,6 +127,11 @@
             color: white;
         }
 
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
         .no-data {
             text-align: center;
             padding: 40px;
@@ -136,11 +141,14 @@
 </head>
 <body>
     <div class="container">
-        <a href="/dashboard" class="back-link">← กลับหน้าหลัก</a>
-        
         <div class="header">
-            <h1>🤔 ตัดสินใจซื้ออะไร?</h1>
-            <p>รายการยาที่ควรสั่งซื้อ (คำนวณจาก: สต็อกปัจจุบัน + ค้างรับ - ค้างจ่าย)</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🤔 ตัดสินใจซื้ออะไร?</h1>
+                    <p>รายการยาที่ควรสั่งซื้อ (คำนวณจาก: สต็อกปัจจุบัน + ค้างรับ - ค้างจ่าย)</p>
+                </div>
+                <a href="/orders" class="btn btn-secondary">← กลับหน้าสั่งซื้อ</a>
+            </div>
         </div>
 
         <div class="table-container">

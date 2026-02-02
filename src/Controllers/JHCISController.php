@@ -25,12 +25,7 @@ class JHCISController {
      */
     public function __construct() {
         // Drugmuk Database
-        $this->db = new PDO(
-            "mysql:host=" . (getenv('DB_HOST') ?: 'db') . ";dbname=" . (getenv('DB_NAME') ?: 'drugmuk'),
-            getenv('DB_USER') ?: 'root',
-            getenv('DB_PASS') ?: '123456',
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-        );
+        $this->db = \App\Core\Database::getInstance()->getConnection();
         
         // โหลดการตั้งค่า JHCIS จากไฟล์ config
         $this->jhcisDb = $this->loadJHCISConnection();

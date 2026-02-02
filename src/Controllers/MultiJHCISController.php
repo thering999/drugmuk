@@ -13,36 +13,7 @@ class MultiJHCISController
     
     public function __construct()
     {
-        // $this->db = \App\Core\Database::getInstance()->getConnection();
-        
-        // DEBUG: Manual connection to verify connectivity
-        try {
-            // Load dotenv if not loaded
-            if (!isset($_ENV['DB_HOST'])) {
-                $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__ . '/../../');
-                $dotenv->load();
-            }
-            
-            $host = $_ENV['DB_HOST'] ?? 'localhost';
-            $db   = $_ENV['DB_NAME'] ?? 'drugmuk';
-            $user = $_ENV['DB_USER'] ?? 'root';
-            $pass = $_ENV['DB_PASS'] ?? '';
-            $port = $_ENV['DB_PORT'] ?? 3306;
-
-            $dsn = "mysql:host=$host;dbname=$db;port=$port;charset=utf8mb4";
-            $this->db = new \PDO($dsn, $user, $pass, [
-                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-                \PDO::ATTR_EMULATE_PREPARES => false,
-            ]);
-            
-            error_log("MultiJHCISController: Manually connected to DB $db at $host");
-            
-        } catch (\Exception $e) {
-            error_log("MultiJHCISController DB Connection Error: " . $e->getMessage());
-            // Fallback
-            $this->db = \App\Core\Database::getInstance()->getConnection();
-        }
+        $this->db = \App\Core\Database::getInstance()->getConnection();
     }
     
     /**
@@ -78,13 +49,18 @@ class MultiJHCISController
                 throw new \Exception('กรุณากรอกข้อมูลให้ครบถ้วน');
             }
             
-            $stmt = $this->db->prepare(
-                "INSERT INTO jhcis_hospitals 
-                 (code, name, db_host, db_port, db_name, db_user, db_pass, pcucode, is_active)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)"
-            );
-            
-            $stmt->execute([$code, $name, $dbHost, $dbPort, $dbName, $dbUser, $dbPass, $pcucode]);
+            $hospitalModel = new \App\Models\Hospital();
+            $hospitalModel->create([
+                'code' => $code,
+                'name' => $name,
+                'db_host' => $dbHost,
+                'db_port' => $dbPort,
+                'db_name' => $dbName,
+                'db_user' => $dbUser,
+                'db_pass' => $dbPass,
+                'pcucode' => $pcucode,
+                'is_active' => 1
+            ]);
             
             echo json_encode([
                 'success' => true,
@@ -118,14 +94,24 @@ class MultiJHCISController
             $pcucode = $_POST['pcucode'] ?? null;
             $isActive = $_POST['is_active'] ?? 1;
             
-            $stmt = $this->db->prepare(
-                "UPDATE jhcis_hospitals 
-                 SET code = ?, name = ?, db_host = ?, db_port = ?, 
-                     db_name = ?, db_user = ?, db_pass = ?, pcucode = ?, is_active = ?
-                 WHERE id = ?"
-            );
+            $data = [
+                'code' => $code,
+                'name' => $name,
+                'db_host' => $dbHost,
+                'db_port' => $dbPort,
+                'db_name' => $dbName,
+                'db_user' => $dbUser,
+                'pcucode' => $pcucode,
+                'is_active' => $isActive
+            ];
             
-            $stmt->execute([$code, $name, $dbHost, $dbPort, $dbName, $dbUser, $dbPass, $pcucode, $isActive, $id]);
+            // Only update password if provided
+            if (!empty($dbPass)) {
+                $data['db_pass'] = $dbPass;
+            }
+            
+            $hospitalModel = new \App\Models\Hospital();
+            $hospitalModel->update($id, $data);
             
             echo json_encode([
                 'success' => true,

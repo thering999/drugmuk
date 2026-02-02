@@ -20,12 +20,7 @@ class LoanController {
     private $db;
     
     public function __construct() {
-        $this->db = new PDO(
-            "mysql:host=" . getenv('DB_HOST') . ";dbname=" . getenv('DB_NAME'),
-            getenv('DB_USER'),
-            getenv('DB_PASS'),
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-        );
+        $this->db = \App\Core\Database::getInstance()->getConnection();
     }
     
     // ========================================================================

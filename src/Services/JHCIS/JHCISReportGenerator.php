@@ -28,8 +28,18 @@ class JHCISReportGenerator
      * @param string $toDate
      * @return array
      */
-    public function generateSyncPerformanceReport(int $hospitalId, string $fromDate, string $toDate): array
+    public function generateSyncPerformanceReport(?int $hospitalId, string $fromDate, string $toDate): array
     {
+        $hospitalCondition = "";
+        $params = [$fromDate, $toDate];
+        
+        if ($hospitalId) {
+            $hospitalCondition = "WHERE hospital_id = ? AND";
+            array_unshift($params, $hospitalId);
+        } else {
+            $hospitalCondition = "WHERE";
+        }
+
         // Overall stats
         $stmt = $this->db->prepare(
             "SELECT 
@@ -41,10 +51,9 @@ class JHCISReportGenerator
                 SUM(CASE WHEN sync_status = 'completed' THEN 1 ELSE 0 END) as successful_syncs,
                 SUM(CASE WHEN sync_status = 'failed' THEN 1 ELSE 0 END) as failed_syncs
              FROM jhcis_sync_log
-             WHERE hospital_id = ?
-             AND started_at BETWEEN ? AND ?"
+             $hospitalCondition started_at BETWEEN ? AND ?"
         );
-        $stmt->execute([$hospitalId, $fromDate, $toDate]);
+        $stmt->execute($params);
         $overall = $stmt->fetch();
         
         // Daily breakdown
@@ -57,12 +66,11 @@ class JHCISReportGenerator
                 SUM(records_failed) as failed,
                 AVG(TIMESTAMPDIFF(SECOND, started_at, completed_at)) as avg_duration
              FROM jhcis_sync_log
-             WHERE hospital_id = ?
-             AND started_at BETWEEN ? AND ?
+             $hospitalCondition started_at BETWEEN ? AND ?
              GROUP BY DATE(started_at)
              ORDER BY date DESC"
         );
-        $stmt->execute([$hospitalId, $fromDate, $toDate]);
+        $stmt->execute($params);
         $daily = $stmt->fetchAll();
         
         // Success rate
@@ -75,7 +83,8 @@ class JHCISReportGenerator
                 'success_rate' => round($successRate, 2),
                 'avg_records_per_sync' => $overall['total_syncs'] > 0 
                     ? round($overall['total_records'] / $overall['total_syncs'], 0) 
-                    : 0
+                    : 0,
+                'scope' => $hospitalId ? 'single_hospital' : 'all_hospitals'
             ]),
             'daily' => $daily,
             'period' => [
@@ -91,13 +100,21 @@ class JHCISReportGenerator
      * @param int $hospitalId
      * @return array
      */
-    public function generateDataQualityReport(int $hospitalId): array
+    public function generateDataQualityReport(?int $hospitalId): array
     {
+        $hospitalCondition = "";
+        $params = [];
+        
+        if ($hospitalId) {
+            $hospitalCondition = "WHERE hospital_id = ?";
+            $params = [$hospitalId];
+        }
+
         // Mapping coverage
         $stmt = $this->db->prepare(
-            "SELECT COUNT(*) as mapped_drugs FROM jhcis_drug_mapping WHERE hospital_id = ?"
+            "SELECT COUNT(*) as mapped_drugs FROM jhcis_drug_mapping $hospitalCondition"
         );
-        $stmt->execute([$hospitalId]);
+        $stmt->execute($params);
         $mappedDrugs = $stmt->fetchColumn();
         
         // Mapping by confidence
@@ -110,28 +127,36 @@ class JHCISReportGenerator
                 END as confidence_level,
                 COUNT(*) as count
              FROM jhcis_drug_mapping
-             WHERE hospital_id = ?
+             $hospitalCondition
              GROUP BY confidence_level"
         );
-        $stmt->execute([$hospitalId]);
+        $stmt->execute($params);
         $confidenceLevels = $stmt->fetchAll();
         
         // Recent errors
-        $stmt = $this->db->prepare(
-            "SELECT 
+        $sql = "SELECT 
                 error_type,
                 COUNT(*) as count
              FROM jhcis_sync_errors
-             WHERE sync_log_id IN (
+             ";
+             
+        if ($hospitalId) {
+            $sql .= "WHERE sync_log_id IN (
                  SELECT id FROM jhcis_sync_log 
                  WHERE hospital_id = ? 
                  AND started_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-             )
-             GROUP BY error_type
-             ORDER BY count DESC
-             LIMIT 10"
-        );
-        $stmt->execute([$hospitalId]);
+             )";
+        } else {
+            $sql .= "WHERE sync_log_id IN (
+                 SELECT id FROM jhcis_sync_log 
+                 WHERE started_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             )";
+        }
+        
+        $sql .= " GROUP BY error_type ORDER BY count DESC LIMIT 10";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params); // params works for both cases (contains hospitalId if set, otherwise empty)
         $errorTypes = $stmt->fetchAll();
         
         return [
@@ -140,6 +165,7 @@ class JHCISReportGenerator
                 'by_confidence' => $confidenceLevels
             ],
             'error_analysis' => $errorTypes,
+            'scope' => $hospitalId ? 'single_hospital' : 'all_hospitals',
             'generated_at' => date('Y-m-d H:i:s')
         ];
     }
@@ -289,9 +315,15 @@ class JHCISReportGenerator
         $hospitals = $stmt->fetchAll();
         
         $totalMapped = 0;
-        foreach ($hospitals as $h) {
+        foreach ($hospitals as &$h) {
             $totalMapped += $h['mapped_count'];
+            
+            // If pcucode is null/empty/dash, fallback to code
+            if (empty($h['pcucode']) || $h['pcucode'] == '-') {
+                $h['pcucode'] = $h['code'];
+            }
         }
+        unset($h); // Break reference
         
         return [
             'hospitals' => $hospitals,
@@ -366,39 +398,73 @@ class JHCISReportGenerator
      * @param int $hospitalId
      * @return array
      */
-    public function generateExecutiveSummary(int $hospitalId): array
+    /**
+     * Generate executive summary report
+     * 
+     * @param int|null $hospitalId
+     * @return array
+     */
+    public function generateExecutiveSummary($hospitalId): array
     {
         try {
-            // Get hospital info
-            $stmt = $this->db->prepare("SELECT code, name FROM jhcis_hospitals WHERE id = ?");
-            $stmt->execute([$hospitalId]);
-            $hospital = $stmt->fetch();
-            
-            if (!$hospital) {
-                return ['error' => 'Hospital not found'];
+            if ($hospitalId) {
+                // Get hospital info - try as ID first
+                $stmt = $this->db->prepare("SELECT id, code, name FROM jhcis_hospitals WHERE id = ?");
+                $stmt->execute([$hospitalId]);
+                $hospital = $stmt->fetch();
+                
+                // If not found by ID, try finding by Code
+                if (!$hospital) {
+                     $stmt = $this->db->prepare("SELECT id, code, name FROM jhcis_hospitals WHERE code = ?");
+                     $stmt->execute([$hospitalId]);
+                     $hospital = $stmt->fetch();
+                }
+
+                if (!$hospital) {
+                    return ['error' => 'Hospital not found'];
+                }
+                
+                // Use the REAL ID for subsequent queries
+                $realId = $hospital['id'];
+                
+                $hospitalCondition = "WHERE hospital_id = ?";
+                $params = [$realId];
+            } else {
+                // Multi-hospital mode
+                $hospital = [
+                    'code' => 'ALL',
+                    'name' => 'All Hospitals (Consolidated)'
+                ];
+                $hospitalCondition = "";
+                $params = [];
+                $realId = null;
             }
             
             // Sync statistics (last 30 days)
-            $stmt = $this->db->prepare(
-                "SELECT 
-                    COUNT(*) as total_syncs,
-                    SUM(records_processed) as total_records,
-                    SUM(CASE WHEN sync_status = 'completed' THEN 1 ELSE 0 END) as successful_syncs,
-                    MAX(completed_at) as last_sync
-                 FROM jhcis_sync_log
-                 WHERE hospital_id = ?
-                 AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
-            );
-            $stmt->execute([$hospitalId]);
+             $sql = "SELECT 
+                        COUNT(*) as total_syncs,
+                        SUM(records_processed) as total_records,
+                        SUM(CASE WHEN sync_status = 'completed' THEN 1 ELSE 0 END) as successful_syncs,
+                        MAX(completed_at) as last_sync
+                     FROM jhcis_sync_log
+                     $hospitalCondition";
+            if (!$realId) {
+                $sql .= " WHERE started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+            } else {
+                $sql .= " AND started_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
             $syncStats = $stmt->fetch();
             
             // Data quality metrics
             $stmt = $this->db->prepare(
                 "SELECT COUNT(*) as mapped_drugs 
                  FROM jhcis_drug_mapping 
-                 WHERE hospital_id = ?"
+                 $hospitalCondition"
             );
-            $stmt->execute([$hospitalId]);
+            $stmt->execute($params);
             $dataQuality = $stmt->fetch();
             
             // Recent alerts
@@ -408,21 +474,21 @@ class JHCISReportGenerator
                     message,
                     created_at
                  FROM jhcis_alerts
-                 WHERE hospital_id = ?
-                 AND status = 'active'
+                 $hospitalCondition
+                 " . ($realId ? "AND status = 'active'" : "WHERE status = 'active'") . "
                  ORDER BY created_at DESC
                  LIMIT 5"
             );
-            $stmt->execute([$hospitalId]);
+            $stmt->execute($params);
             $alerts = $stmt->fetchAll();
             
             // Active alerts count
             $stmt = $this->db->prepare(
                 "SELECT COUNT(*) as count 
                  FROM jhcis_alerts 
-                 WHERE hospital_id = ? AND status = 'active'"
+                 " . ($hospitalId ? "WHERE hospital_id = ? AND status = 'active'" : "WHERE status = 'active'")
             );
-            $stmt->execute([$hospitalId]);
+            $stmt->execute($params);
             $activeAlertsCount = $stmt->fetchColumn();
             
             $totalSyncs = (int)($syncStats['total_syncs'] ?? 0);
@@ -445,12 +511,13 @@ class JHCISReportGenerator
                     'active_count' => (int)$activeAlertsCount,
                     'recent' => $alerts
                 ],
+                'scope' => $hospitalId ? 'single_hospital' : 'all_hospitals',
                 'generated_at' => date('Y-m-d H:i:s')
             ];
             
         } catch (\Exception $e) {
             $this->logger->error("Failed to generate executive summary", [
-                'hospital_id' => $hospitalId,
+                'hospital_id' => $hospitalId ?? 'all',
                 'error' => $e->getMessage()
             ]);
             

@@ -16,26 +16,8 @@ class ChronicDiseaseService
     
     public function __construct()
     {
-        $this->db = $this->getConnection();
+        $this->db = \App\Core\Database::getInstance()->getConnection();
         $this->patientService = new PatientService();
-    }
-    
-    /**
-     * Get database connection
-     */
-    private function getConnection()
-    {
-        $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $port = $_ENV['DB_PORT'] ?? '3306';
-        $dbname = $_ENV['DB_NAME'] ?? 'drugmuk';
-        $username = $_ENV['DB_USER'] ?? 'root';
-        $password = $_ENV['DB_PASSWORD'] ?? '';
-        
-        $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
-        return new PDO($dsn, $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
     }
     
     /**

@@ -78,6 +78,11 @@
 </head>
 <body>
     <div class="container">
+        <div style="margin-bottom: 20px;">
+            <a href="/dashboard" style="color: #4ec9b0; text-decoration: none; font-size: 16px;">
+                ← กลับหน้าหลัก
+            </a>
+        </div>
         <h1>🔍 JHCIS API Debug Tool</h1>
         
         <div class="section">

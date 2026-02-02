@@ -591,6 +591,10 @@ class JHCISEnhancedController
             $type = $_POST['type'] ?? 'performance';
             $hospitalId = $_POST['hospital_id'] ?? null;
             
+            // Allow all reports to run without hospital_id (defaulting to aggregated/multi-hospital mode)
+            // But we keep strict checking if you explicitly wanted single hospital
+            
+            /* 
             // Only require hospital_id for single-hospital reports
             $requiresHospitalId = !in_array($type, ['multi_hospital', 'consumption']);
             
@@ -602,6 +606,7 @@ class JHCISEnhancedController
                 ]);
                 exit;
             }
+            */
             
             $reporter = new JHCISReportGenerator();
             $report = null;

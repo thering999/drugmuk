@@ -38,7 +38,8 @@ class DashboardController extends Controller
             'pending_orders_count' => $this->orderModel->getPendingOrdersCount(),
             'expiring_contracts_count' => $this->contractModel->getExpiringContractsCount(30),
             'pending_disbursements_count' => $this->inventoryModel->getPendingDisbursementsCount(),
-            'data_quality_score' => $this->cleansingModel->getDataQualityScore()
+            'data_quality_score' => $this->cleansingModel->getDataQualityScore(),
+            'jhcis_stats' => $this->getJhcisStats()
         ];
 
         // Get alerts
@@ -87,5 +88,36 @@ class DashboardController extends Controller
             'recent_orders' => $recentOrders,
             'recent_receives' => $recentReceives
         ]);
+    }
+
+    private function getJhcisStats()
+    {
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            
+            // Count active hospitals
+            $stmt = $db->query("SELECT COUNT(*) FROM jhcis_hospitals WHERE is_active = 1");
+            $activeHospitals = $stmt->fetchColumn();
+            
+            // Count recent failures (24h)
+            $stmt = $db->query("SELECT COUNT(*) FROM jhcis_sync_log WHERE sync_status = 'failed' AND started_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+            $recentFailures = $stmt->fetchColumn();
+            
+            // Last sync time
+            $stmt = $db->query("SELECT MAX(completed_at) FROM jhcis_sync_log WHERE sync_status = 'completed'");
+            $lastSync = $stmt->fetchColumn();
+            
+            return [
+                'active_hospitals' => $activeHospitals,
+                'recent_failures' => $recentFailures,
+                'last_sync' => $lastSync
+            ];
+        } catch (\Exception $e) {
+            return [
+                'active_hospitals' => 0,
+                'recent_failures' => 0,
+                'last_sync' => null
+            ];
+        }
     }
 }

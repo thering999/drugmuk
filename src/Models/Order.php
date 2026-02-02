@@ -141,14 +141,14 @@ class Order
                 d.code,
                 d.name,
                 COALESCE(SUM(i.quantity), 0) as current_stock,
-                COALESCE(pending_receive.qty, 0) as pending_receive,
-                COALESCE(pending_issue.qty, 0) as pending_issue,
+                COALESCE(MAX(pending_receive.qty), 0) as pending_receive,
+                COALESCE(MAX(pending_issue.qty), 0) as pending_issue,
                 d.min_stock,
-                COALESCE(f.forecast_quantity, 0) as next_month_forecast,
-                (COALESCE(SUM(i.quantity), 0) + COALESCE(pending_receive.qty, 0) - COALESCE(pending_issue.qty, 0)) as net_stock,
+                COALESCE(MAX(f.forecast_quantity), 0) as next_month_forecast,
+                (COALESCE(SUM(i.quantity), 0) + COALESCE(MAX(pending_receive.qty), 0) - COALESCE(MAX(pending_issue.qty), 0)) as net_stock,
                 CASE 
-                    WHEN (COALESCE(SUM(i.quantity), 0) + COALESCE(pending_receive.qty, 0) - COALESCE(pending_issue.qty, 0)) < d.min_stock 
-                    THEN d.min_stock - (COALESCE(SUM(i.quantity), 0) + COALESCE(pending_receive.qty, 0) - COALESCE(pending_issue.qty, 0))
+                    WHEN (COALESCE(SUM(i.quantity), 0) + COALESCE(MAX(pending_receive.qty), 0) - COALESCE(MAX(pending_issue.qty), 0)) < d.min_stock 
+                    THEN d.min_stock - (COALESCE(SUM(i.quantity), 0) + COALESCE(MAX(pending_receive.qty), 0) - COALESCE(MAX(pending_issue.qty), 0))
                     ELSE 0
                 END as suggested_order_qty
             FROM drugs d

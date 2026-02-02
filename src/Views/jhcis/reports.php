@@ -196,7 +196,7 @@
                     
                     <select id="hospitalId" class="form-control" 
                             style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 5px;">
-                        <option value="">-- เลือก รพ.สต. --</option>
+                        <option value="">-- ทั้งหมด (รวมทุกโรงพยาบาล) --</option>
                         <?php if (empty($hospitals)): ?>
                             <option value="" disabled>ยังไม่มี รพ.สต. ในระบบ - กรุณาเพิ่มที่หน้า Hospital Management</option>
                         <?php else: ?>
@@ -399,12 +399,16 @@
             const hospitalSelector = document.getElementById('hospitalSelector');
             const requiredIndicator = document.getElementById('requiredIndicator');
             
-            if (['multi_hospital', 'consumption'].includes(tab)) {
-                // These reports don't need hospital selection
+            if (tab === 'multi_hospital') {
+                // Multi-hospital comparison always includes all hospitals, so no selector needed
                 hospitalSelector.style.display = 'none';
             } else {
-                // Single-hospital reports require selection
+                // For other reports, selector is available (optional for consolidated view)
                 hospitalSelector.style.display = 'block';
+                
+                // Show/hide required indicator based on strict necessity?
+                // Actually now all reports support consolidated view (no ID), so it's never strictly required
+                if (requiredIndicator) requiredIndicator.style.display = 'none';
             }
             
             // Show/hide reports
@@ -420,7 +424,7 @@
                 generateReport();
             }
         }
-
+        
         // Auto-include CSRF token in all AJAX requests (MUST BE FIRST!)
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         
@@ -440,8 +444,12 @@
         // Initialize: hide hospital selector for multi_hospital tab
         document.addEventListener('DOMContentLoaded', () => {
             const hospitalSelector = document.getElementById('hospitalSelector');
-            if (hospitalSelector && currentTab === 'multi_hospital') {
-                hospitalSelector.style.display = 'none';
+            const requiredIndicator = document.getElementById('requiredIndicator');
+            
+            if (currentTab === 'multi_hospital') {
+                if (hospitalSelector) hospitalSelector.style.display = 'none';
+            } else {
+                if (requiredIndicator) requiredIndicator.style.display = 'none';
             }
         });
 
@@ -514,12 +522,17 @@
                 const formData = new FormData();
                 
                 // Only add hospital_id for single-hospital reports
+                /*
                 if (!['multi_hospital', 'consumption'].includes(type)) {
                     if (!hospitalId) {
                         throw new Error('กรุณาเลือก รพ.สต. ก่อนสร้างรายงาน');
                     }
                     formData.append('hospital_id', hospitalId);
                 }
+                */
+               if (hospitalId) {
+                   formData.append('hospital_id', hospitalId);
+               }
                 
                 formData.append('type', type);
                 formData.append('from_date', fromDate);

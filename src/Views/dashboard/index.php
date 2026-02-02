@@ -300,6 +300,32 @@
                     <div class="value"><?= number_format($quality['quality_score'], 1) ?>%</div>
                 </div>
             </a>
+            
+            <a href="/admin/jhcis/dashboard" style="text-decoration: none;">
+                <div class="metric-card" style="border-left: 4px solid #10b981;">
+                    <h3>🏥 รพ.สต. ที่เชื่อมต่อ</h3>
+                    <div class="value"><?= $metrics['jhcis_stats']['active_hospitals'] ?? 0 ?> <span style="font-size: 14px; color: #666;">แห่ง</span></div>
+                </div>
+            </a>
+
+            <?php 
+                $failures = $metrics['jhcis_stats']['recent_failures'] ?? 0;
+                $syncColor = $failures > 0 ? '#ef4444' : '#10b981';
+                $syncText = $failures > 0 ? $failures . ' ข้อผิดพลาด' : 'ปกติ';
+            ?>
+            <a href="/realtime-sync" style="text-decoration: none;">
+                <div class="metric-card" style="border-left: 4px solid <?= $syncColor ?>;">
+                    <h3>⚡ สถานะ Sync (24ชม.)</h3>
+                    <div class="value" style="color: <?= $syncColor ?>; font-size: 28px;">
+                        <?= $syncText ?>
+                    </div>
+                    <?php if (!empty($metrics['jhcis_stats']['last_sync'])): ?>
+                        <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                            ล่าสุด: <?= date('d/m H:i', strtotime($metrics['jhcis_stats']['last_sync'])) ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </a>
         </div>
 
         <?php if (!empty($alerts)): ?>

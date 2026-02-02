@@ -17,9 +17,9 @@ class PatientService
     public function __construct()
     {
         $this->jhcisDb = $this->getJHCISConnection();
-        $this->drugmukDb = $this->getDrugmukConnection();
+        $this->drugmukDb = \App\Core\Database::getInstance()->getConnection();
     }
-    
+
     /**
      * Get JHCIS database connection
      */
@@ -41,24 +41,6 @@ class PatientService
             error_log("JHCIS Connection Error: " . $e->getMessage());
             return null;
         }
-    }
-    
-    /**
-     * Get Drugmuk database connection
-     */
-    private function getDrugmukConnection()
-    {
-        $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $port = $_ENV['DB_PORT'] ?? '3306';
-        $dbname = $_ENV['DB_NAME'] ?? 'drugmuk';
-        $username = $_ENV['DB_USER'] ?? 'root';
-        $password = $_ENV['DB_PASSWORD'] ?? '';
-        
-        $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
-        return new PDO($dsn, $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
     }
     
     /**
