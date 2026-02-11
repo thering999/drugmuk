@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Core\Database;
 use App\Services\LineNotificationService;
+use App\Services\DrugInteractionService;
 use PDO;
 
 /**
@@ -15,11 +16,13 @@ class SafetyService
 {
     private $db;
     private $lineService;
+    private $drugInteractionService;
     
     public function __construct()
     {
         $this->db = Database::getInstance()->getConnection();
         $this->lineService = new LineNotificationService();
+        $this->drugInteractionService = new DrugInteractionService();
     }
     
     /**
@@ -31,20 +34,52 @@ class SafetyService
     {
         if (count($drugNames) < 2) return [];
         
-        $interactions = [];
+        // Convert names to simulated IDs for DrugInteractionService
+        // In a real scenario, we would query `drugs` table to get real IDs
+        // For now, we will create a map of Drug Name -> ID just to pass to the service
+        // But DrugInteractionService actually needs to look up names from IDs internally
+        // So we might need a direct string-based check in DrugInteractionService or shim it here.
+        
+        // BETTER APPROACH: Let's use the DrugInteractionService's lower-level logic
+        // But that service is built around IDs. 
+        // Let's implement a 'findInteraction' wrapper here that uses the internal knownInteractions of that service?
+        // No, `knownInteractions` is private.
+        
+        // WORKAROUND: We will query the DB to get IDs for these names, then call the service.
+        $drugIds = [];
         $placeholders = str_repeat('?,', count($drugNames) - 1) . '?';
+        $sql = "SELECT id FROM drugs WHERE name IN ($placeholders) OR generic_name IN ($placeholders)";
         
-        // Find all interactions where both drug names are in our list
-        $sql = "
-            SELECT * FROM ref_drug_interactions 
-            WHERE drug_a_name IN ($placeholders) 
-            AND drug_b_name IN ($placeholders)
-        ";
+        // Duplicate params for OR check? No, 'name IN () OR generic IN ()' needs 2 sets.
+        // Let's just search by name for now to match the JS frontend input
+        $sql = "SELECT id FROM drugs WHERE name IN ($placeholders)";
         
-        $params = array_merge($drugNames, $drugNames);
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($drugNames);
+            $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $drugIds = $rows;
+        } catch (\Exception $e) {
+            // Fallback if query fails
+            return [];
+        }
+        
+        if (empty($drugIds)) return [];
+
+        // Now stick into the service
+        $results = $this->drugInteractionService->checkInteractions($drugIds);
+        
+        // Map back to format expected by frontend JS (which expects drug_a_name, description etc)
+        // The service returns: drug1_name, drug2_name, severity, effect, recommendation
+        return array_map(function($r) {
+            return [
+                'drug_a_name' => $r['drug1_name'],
+                'drug_b_name' => $r['drug2_name'],
+                'severity' => $r['severity'],
+                'description' => $r['effect'],
+                'action_suggested' => $r['recommendation']
+            ];
+        }, $results);
     }
     
     /**

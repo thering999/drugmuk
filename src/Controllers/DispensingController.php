@@ -66,10 +66,12 @@ class DispensingController extends Controller {
         if (isset($_POST['drug_id']) && is_array($_POST['drug_id'])) {
             foreach ($_POST['drug_id'] as $index => $drugId) {
                 $quantity = $_POST['quantity'][$index] ?? 0;
+                $instruction = $_POST['usage_instruction'][$index] ?? '';
                 if ($drugId && $quantity > 0) {
                     $data['items'][] = [
                         'drug_id' => $drugId,
-                        'quantity' => $quantity
+                        'quantity' => $quantity,
+                        'usage_instruction' => $instruction
                     ];
                 }
             }
@@ -225,5 +227,57 @@ class DispensingController extends Controller {
         // Redirect to create
         header('Location: /dispensing/create');
         exit;
+    }
+    /**
+     * API: Verify QR Code for Dispensing (Track 1)
+     * POST /api/dispensing/verify-qr
+     */
+    public function verifyQR()
+    {
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        $qrCode = $data['qr_code'] ?? '';
+        $dispenseItemId = $data['dispense_item_id'] ?? 0;
+        
+        if (empty($qrCode) || empty($dispenseItemId)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid input']);
+            return;
+        }
+
+        // 1. Get Dispense Item
+        // Ideally should have a dedicated model method
+        $db = \App\Core\Database::getInstance()->getConnection();
+        $stmt = $db->prepare("
+            SELECT di.id, di.drug_id, d.code as drug_code, d.name as drug_name 
+            FROM dispense_items di
+            JOIN drugs d ON di.drug_id = d.id
+            WHERE di.id = ?
+        ");
+        $stmt->execute([$dispenseItemId]);
+        $item = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            echo json_encode(['success' => false, 'message' => 'Item not found']);
+            return;
+        }
+
+        // 2. Verify QR Logic
+        // In real world: QR = Drug Code or a specific Lot No. 
+        // Here we assume QR contains the Drug Code
+        
+        if (trim($qrCode) === $item['drug_code']) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Verification Successful',
+                'drug' => $item['drug_name']
+            ]);
+        } else {
+             echo json_encode([
+                'success' => false,
+                'message' => "Mismatch! Scanned: {$qrCode}, Expected: {$item['drug_code']}",
+                'expected' => $item['drug_name']
+            ]);
+        }
     }
 }

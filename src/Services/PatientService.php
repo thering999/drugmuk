@@ -690,14 +690,51 @@ class PatientService
         }
     }
     
-    /**
-     * Get patient by HN (alias for backward compatibility)
-     * 
-     * @param string $hn Hospital Number
-     * @return array|null Patient data
-     */
     public function getPatientByHN($hn)
     {
         return $this->getPatientProfile($hn);
+    }
+
+    /**
+     * Get Next Appointment from JHCIS
+     * 
+     * @param string $hn
+     * @return array|null
+     */
+    public function getNextAppointment($hn)
+    {
+        if (!$this->jhcisDb) return null;
+        
+        try {
+            // Try standard JHCIS appoint structure
+            // Note: Table and column names might vary by JHCIS version
+            $sql = "SELECT 
+                        a.appointdate as date,
+                        a.appointtime as time,
+                        c.clinicname as department,
+                        'แผนกผู้ป่วยนอก' as location
+                    FROM appoint a
+                    LEFT JOIN clinic c ON a.clinic = c.clinic
+                    WHERE a.hn = :hn 
+                    AND a.appointdate >= CURDATE()
+                    ORDER BY a.appointdate ASC
+                    LIMIT 1";
+            
+            $stmt = $this->jhcisDb->prepare($sql);
+            $stmt->execute(['hn' => $hn]);
+            $appt = $stmt->fetch();
+            
+            if ($appt) {
+                // Ensure format
+                $appt['date'] = $appt['date']; // Y-m-d usually
+                $appt['time'] = substr($appt['time'], 0, 5); // HH:mm
+                return $appt;
+            }
+            
+            return null;
+        } catch (\PDOException $e) {
+            // Fallback for different schema?
+            return null;
+        }
     }
 }

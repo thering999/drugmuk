@@ -228,9 +228,12 @@
                         <td style="text-align: right;"><strong><?= number_format($item['quantity']) ?></strong></td>
                         <td><?= htmlspecialchars($item['unit']) ?></td>
                         <td style="text-align: center;">
-                            <a href="/label/print/<?= $dispensing['id'] ?>/<?= $item['id'] ?>" target="_blank" class="btn btn-secondary btn-sm" style="background: #10b981; margin: 0;">
-                                <i class="fas fa-qrcode"></i> พิมพ์ฉลาก QR
+                            <a href="/label/print/<?= $dispensing['id'] ?>/<?= $item['id'] ?>" target="_blank" class="btn btn-secondary btn-sm" style="background: #10b981; margin: 0; font-size: 12px; padding: 5px 10px;">
+                                <i class="fas fa-qrcode"></i> พิมพ์ฉลาก
                             </a>
+                            <button onclick="openVerifyModal('<?= $item['id'] ?>', '<?= htmlspecialchars($item['drug_name']) ?>')" class="btn btn-primary btn-sm" style="background: #3b82f6; margin-left: 5px; font-size: 12px; padding: 5px 10px;">
+                                <i class="fas fa-check-double"></i> Verify
+                            </button>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -256,5 +259,76 @@
             </div>
         </div>
     </div>
+
+    <!-- Verify Modal -->
+    <div id="verifyModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+            <i class="fas fa-qrcode fa-3x" style="color: #667eea; margin-bottom: 20px;"></i>
+            <h2 style="margin-bottom: 10px;">QR Verification</h2>
+            <p id="verifyDrugName" style="color: #666; margin-bottom: 20px; font-weight: bold;"></p>
+            
+            <input type="text" id="qrInput" class="form-control" placeholder="Scan QR Code here..." style="width: 100%; padding: 10px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 20px; text-align: center;" autofocus autocomplete="off">
+            <input type="hidden" id="verifyItemId">
+
+            <div id="verifyResult" style="margin-bottom: 20px; min-height: 20px;"></div>
+
+            <button onclick="closeVerifyModal()" class="btn btn-secondary" style="width: 100%;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('verifyModal');
+        const qrInput = document.getElementById('qrInput');
+        const verifyResult = document.getElementById('verifyResult');
+
+        function openVerifyModal(itemId, drugName) {
+            document.getElementById('verifyItemId').value = itemId;
+            document.getElementById('verifyDrugName').innerText = drugName;
+            verifyResult.innerHTML = '';
+            qrInput.value = '';
+            modal.style.display = 'flex';
+            qrInput.focus();
+        }
+
+        function closeVerifyModal() {
+            modal.style.display = 'none';
+        }
+
+        qrInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const code = this.value;
+                const itemId = document.getElementById('verifyItemId').value;
+                
+                verifyResult.innerHTML = '<span style="color: #666;"><i class="fas fa-spinner fa-spin"></i> Verifying...</span>';
+
+                fetch('/api/dispensing/verify-qr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qr_code: code, dispense_item_id: itemId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        verifyResult.innerHTML = '<div style="color: #10b981; font-weight: bold; font-size: 18px;"><i class="fas fa-check-circle"></i> MATCHED</div>';
+                        new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg').play(); // Success Sound (Mock)
+                    } else {
+                        verifyResult.innerHTML = '<div style="color: #ef4444; font-weight: bold; font-size: 18px;"><i class="fas fa-times-circle"></i> MISMATCH</div><div style="font-size: 12px; color: #ef4444;">Current: '+code+'</div>';
+                        new Audio('https://actions.google.com/sounds/v1/alerts/beep_short.ogg').play(); // Error Sound (Mock)
+                    }
+                    qrInput.value = ''; // Clear for next scan
+                })
+                .catch(err => {
+                    verifyResult.innerHTML = '<span style="color: red;">Error connecting to server</span>';
+                });
+            }
+        });
+        
+        // Close modal on click outside
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeVerifyModal();
+            }
+        }
+    </script>
 </body>
 </html>

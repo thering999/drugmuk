@@ -62,7 +62,7 @@ class Dispensing {
      */
     public function getItems($dispenseId) {
         $sql = "SELECT di.*, dr.code as drug_code, dr.name as drug_name, 
-                dr.unit, dr.generic_name
+                dr.unit, dr.generic_name, dr.video_url
                 FROM dispensing_items di
                 JOIN drugs dr ON di.drug_id = dr.id
                 WHERE di.dispense_id = ?
@@ -137,15 +137,16 @@ class Dispensing {
 
             // Insert dispensing items
             if (!empty($data['items'])) {
-                $itemSql = "INSERT INTO dispensing_items (dispense_id, drug_id, quantity)
-                           VALUES (?, ?, ?)";
+                $itemSql = "INSERT INTO dispensing_items (dispense_id, drug_id, quantity, usage_instruction)
+                           VALUES (?, ?, ?, ?)";
                 $itemStmt = $this->db->prepare($itemSql);
 
                 foreach ($data['items'] as $item) {
                     $itemStmt->execute([
                         $dispenseId,
                         $item['drug_id'],
-                        $item['quantity']
+                        $item['quantity'],
+                        $item['usage_instruction'] ?? null
                     ]);
 
                     // Update inventory - deduct stock

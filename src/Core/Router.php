@@ -62,17 +62,20 @@ class Router {
 
             if (preg_match($pattern, $uri, $matches)) {
                 if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
-                    try {
-                        \App\Core\CSRF::verifyRequest();
-                    } catch (\Exception $e) {
-                        http_response_code(403);
-                        header('Content-Type: application/json');
-                        echo json_encode([
-                            'success' => false,
-                            'error' => 'CSRF validation failed',
-                            'message' => $e->getMessage()
-                        ]);
-                        return;
+                    // Skip CSRF for API routes (they use Bearer/Custom tokens) or specific webhooks
+                    if (strpos($uri, '/api/') !== 0 && strpos($uri, '/patient/v/') !== 0) {
+                        try {
+                            \App\Core\CSRF::verifyRequest();
+                        } catch (\Exception $e) {
+                            http_response_code(403);
+                            header('Content-Type: application/json');
+                            echo json_encode([
+                                'success' => false,
+                                'error' => 'CSRF validation failed',
+                                'message' => $e->getMessage()
+                            ]);
+                            return;
+                        }
                     }
                 }
 

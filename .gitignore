@@ -7,15 +7,18 @@ vendor/
 .env.production.local
 
 # Logs
-logs/
-*.log
+logs/*.log
+!logs/.gitkeep
 
-# Exports
-exports/
+# Exports (keep directory structure)
+exports/*.xlsx
+exports/*.pdf
+exports/*.csv
+!exports/.gitkeep
 
-# Database
-database/*.sql
+# Database backups (keep schema)
 database/backups/
+!database/drugmuk.sql
 
 # IDE
 .vscode/
@@ -27,3 +30,15 @@ database/backups/
 .agent/
 .DS_Store
 Thumbs.db
+
+# Storage (keep directory structure)
+storage/cache/*
+storage/sessions/*
+storage/temp/*
+!storage/cache/.gitkeep
+!storage/sessions/.gitkeep
+!storage/temp/.gitkeep
+
+# Uploads
+public/uploads/*
+!public/uploads/.gitkeep

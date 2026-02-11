@@ -111,6 +111,22 @@
 
         <!-- Right Column -->
         <div class="grid-column">
+            <!-- AI Clinical Insight (NEW) -->
+            <div class="dashboard-card ai-insight-card" id="ai-insight-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0;">
+                    <h2 style="color: white;"><i class="fas fa-brain"></i> AI Clinical Insight (Beta)</h2>
+                    <span class="badge bg-light text-dark">CORE-AI</span>
+                </div>
+                <div class="card-body">
+                    <div id="ai-insight-content" class="insight-loading">
+                        <div class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                            <p>Analyzing patient history & medications...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Current Medications -->
             <div class="dashboard-card">
                 <div class="card-header">
@@ -456,6 +472,60 @@
     .dashboard-grid { grid-template-columns: 1fr; }
     .dashboard-header { flex-direction: column; gap: 20px; align-items: flex-start; }
 }
+
+/* AI Insight Card Styles */
+.ai-insight-card {
+    padding: 0 !important;
+    border: 2px solid #667eea !important;
+    overflow: hidden;
+}
+.ai-insight-card .card-body {
+    padding: 20px;
+}
+.insight-summary {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    color: #4a5568;
+    background: #f7fafc;
+    padding: 15px;
+    border-radius: 12px;
+}
+.insight-alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.insight-alert-item {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    border-radius: 12px;
+    border-left: 4px solid #ccc;
+}
+.insight-alert-item.danger { background: #fff5f5; border-color: #f56565; }
+.insight-alert-item.warning { background: #fffaf0; border-color: #f6ad55; }
+.insight-alert-item .alert-icon { font-size: 20px; margin-top: 2px; }
+.insight-alert-item h4 { margin: 0 0 5px 0; font-size: 14px; font-weight: bold; }
+.insight-alert-item p { margin: 0; font-size: 13px; color: #4a5568; }
+
+.insight-recommendations {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px dashed #e2e8f0;
+}
+.insight-recommendations h4 { font-size: 14px; margin-bottom: 10px; color: #2d3748; }
+.insight-recommendations ul { padding-left: 20px; margin: 0; }
+.insight-recommendations li { font-size: 13px; color: #4a5568; margin-bottom: 5px; }
+
+.score-badge {
+    float: right;
+    font-size: 11px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -613,6 +683,65 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+    // AI Insight Fetching (NEW)
+    fetch('/api/patient/<?php echo $hn; ?>/ai-insight')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('ai-insight-content');
+            if (data.success && data.insight) {
+                const insight = data.insight;
+                
+                let alertsHtml = '';
+                if (insight.alerts && insight.alerts.length > 0) {
+                    alertsHtml = `
+                        <div class="insight-alert-list">
+                            ${insight.alerts.map(alert => `
+                                <div class="insight-alert-item ${alert.type}">
+                                    <div class="alert-icon">
+                                        <i class="fas ${alert.type === 'danger' ? 'fa-radiation' : 'fa-exclamation-triangle'}"></i>
+                                    </div>
+                                    <div class="alert-text">
+                                        <h4>${alert.title}</h4>
+                                        <p>${alert.message}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                let recommendationsHtml = '';
+                if (insight.recommendations && insight.recommendations.length > 0) {
+                    recommendationsHtml = `
+                        <div class="insight-recommendations">
+                            <h4><i class="fas fa-clipboard-check text-success"></i> Recommendations:</h4>
+                            <ul>
+                                ${insight.recommendations.map(r => `<li>${r}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = `
+                    <div class="insight-summary">
+                        ${insight.summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+                    </div>
+                    ${alertsHtml}
+                    ${recommendationsHtml}
+                `;
+                
+                // Add score badge to header
+                const header = document.querySelector('#ai-insight-card .card-header');
+                const badge = document.createElement('span');
+                badge.className = 'score-badge';
+                badge.textContent = 'Risk Score: ' + insight.score;
+                header.appendChild(badge);
+
+            } else {
+                container.innerHTML = '<div class="text-center p-3 text-muted">Analysis unavailable for this profile.</div>';
+            }
+        });
+
     // --- PATIENT ENGAGEMENT TOOLS ---
     const drugSelect = document.getElementById('engagement-drug-select');
     const instructionInput = document.getElementById('easy-instruction-input');
@@ -666,30 +795,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Send Mobile Link (Reminder)
     btnSendLink.addEventListener('click', function() {
-        const drugName = drugSelect.value;
-        const instruction = instructionInput.value;
+        if (!confirm('ส่งลิงก์ Patient Portal ให้ผู้ป่วยทาง LINE?')) return;
         
-        const payload = {
-            hn: '<?php echo $hn; ?>',
-            drug_name: drugName || 'ยาทานของคุณ',
-            instruction: instruction || 'กรุณาทานยาตามเวลาที่กำหนด'
-        };
-
-        if (confirm('ส่งข้อความแจ้งเตือนหาผู้ป่วยผ่านระบบ LINE Notify?')) {
-            fetch('/api/engagement/send-reminder', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('ส่งการแจ้งเตือนสำเร็จ!');
-                } else {
-                    alert('ไม่สามารถส่งได้ (กรุณาตรวจสอบการตั้งค่า LINE Token)');
-                }
-            });
-        }
+        fetch('/api/engagement/send-portal-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hn: '<?php echo $hn; ?>' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('ส่ง Link ให้ผู้ป่วยเรียบร้อยแล้ว!');
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
     });
 
     // Sync Action

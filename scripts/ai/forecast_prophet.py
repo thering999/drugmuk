@@ -1,88 +1,82 @@
 import sys
 import json
-import pandas as pd
-import numpy as np
-from datetime import datetime
-try:
-    from prophet import Prophet
-    HAS_PROPHET = True
-except ImportError:
-    HAS_PROPHET = False
+import logging
+
+# Configure logging to stderr so it doesn't mess up stdout JSON
+logging.basicConfig(level=logging.ERROR)
 
 def main():
-    if len(sys.argv) < 2:
-        print(json.dumps({"success": False, "message": "No data file provided"}))
-        return
-
     try:
-        data_file = sys.argv[1]
-        with open(data_file, 'r') as f:
+        if len(sys.argv) < 2:
+            raise ValueError("No input file provided")
+
+        input_file = sys.argv[1]
+        
+        with open(input_file, 'r') as f:
             data = json.load(f)
 
-        if not data:
-            print(json.dumps({"success": False, "message": "Empty data provided"}))
-            return
+        if not data or len(data) < 5:
+             # Not enough data for Prophet
+             print(json.dumps({
+                 "success": False,
+                 "message": "Insufficient data points (recommend at least 5)"
+             }))
+             return
 
-        # Convert to Pandas DataFrame
+        # Try importing libraries. If missing, fail gracefully.
+        try:
+            import pandas as pd
+            from prophet import Prophet
+        except ImportError as e:
+             # Fallback or error if libraries are missing
+             print(json.dumps({
+                 "success": False,
+                 "message": f"Missing required libraries: {str(e)}. Please install pandas and prophet."
+             }))
+             return
+
+        # Prepare DataFrame
         df = pd.DataFrame(data)
-        
-        # Ensure correct types
         df['ds'] = pd.to_datetime(df['ds'])
         df['y'] = pd.to_numeric(df['y'])
 
-        # Aggregate by day if multiple entries exist
-        df = df.groupby('ds')['y'].sum().reset_index()
+        # Initialize and Train Model
+        m = Prophet(daily_seasonality=False, weekly_seasonality=False, yearly_seasonality=True)
+        m.fit(df)
 
-        if len(df) < 5:
-            # Not enough data for Prophet, use simple linear regression or mean
-            avg_y = df['y'].mean()
-            print(json.dumps({
-                "success": True, 
-                "forecast_quantity": round(float(avg_y), 2),
-                "calculation_method": "SIMPLE_MEAN",
-                "confidence_score": 0.4,
-                "note": "Insufficient data for Prophet"
-            }))
-            return
+        # Make Future DataFrame (1 month ahead)
+        future = m.make_future_dataframe(periods=30) 
+        forecast = m.predict(future)
 
-        if HAS_PROPHET:
-            # Real Prophet Logic
-            m = Prophet(yearly_seasonality=True, daily_seasonality=False, weekly_seasonality=True)
-            m.fit(df)
-            
-            # Predict for next 30 days
-            future = m.make_future_dataframe(periods=30)
-            forecast = m.predict(future)
-            
-            # Get the last prediction (30 days from now)
-            latest = forecast.iloc[-1]
-            forecast_val = latest['yhat']
-            
-            # Ensure no negative values
-            forecast_val = max(0, forecast_val)
+        # Get the prediction for the last date (target month)
+        # We want the sum of the predicted values for the NEXT month.
+        # But 'make_future_dataframe(periods=30)' adds days.
+        # If input data was monthly, this might be tricky.
+        # The PHP exportTrainingData uses 'dispense_date' which implies daily data.
+        
+        # Let's sum the last 30 days of the forecast to represent the next month's demand.
+        next_month_forecast = forecast.tail(30)
+        predicted_qty = next_month_forecast['yhat'].sum()
+        
+        # Calculate a simple confidence score based on uncertainty interval
+        uncertainty = (next_month_forecast['yhat_upper'].sum() - next_month_forecast['yhat_lower'].sum())
+        # Normalized confidence loosely based on uncertainty relative to value
+        confidence = max(0.0, min(1.0, 1.0 - (uncertainty / (predicted_qty + 1))))
 
-            print(json.dumps({
-                "success": True, 
-                "forecast_quantity": round(float(forecast_val), 2),
-                "calculation_method": "PROPHET",
-                "confidence_score": 0.85
-            }))
-        else:
-            # Fallback to a better statistical model than mean if Prophet is missing
-            # Exponentially Weighted Moving Average (EMA)
-            alpha = 0.3
-            ema = df['y'].ewm(alpha=alpha).mean().iloc[-1]
-            
-            print(json.dumps({
-                "success": True, 
-                "forecast_quantity": round(float(ema), 2),
-                "calculation_method": "EMA_STAT",
-                "confidence_score": 0.6,
-                "note": "Prophet library not found, using EMA fallback"
-            }))
+        result = {
+            "success": True,
+            "forecast_quantity": max(0, round(predicted_qty)),
+            "calculation_method": "PROPHET",
+            "confidence_score": round(confidence, 2)
+        }
+
+        print(json.dumps(result))
 
     except Exception as e:
-        print(json.dumps({"success": False, "message": str(e)}))
+        print(json.dumps({
+            "success": False,
+            "message": str(e)
+        }))
 
 if __name__ == "__main__":
     main()

@@ -113,6 +113,22 @@
             
             <div id="results"></div>
         </div>
+
+        <div class="section">
+            <h2>🧪 Test FEFO (Oldest Lot)</h2>
+            <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <div>
+                    <label class="label">Warehouse Code:</label>
+                    <input type="text" id="fefoWarehouse" value="main" style="width: 100px;">
+                </div>
+                <div style="flex-grow: 1;">
+                    <label class="label">Drug ID:</label>
+                    <input type="number" id="fefoDrugId" placeholder="e.g. 1">
+                </div>
+                <button onclick="testFEFO()">Check Oldest Lot</button>
+            </div>
+            <div id="fefoResults"></div>
+        </div>
         
         <div class="section">
             <h2>📋 Recent Test Results</h2>
@@ -242,6 +258,41 @@
         
         function clearResults() {
             document.getElementById('results').innerHTML = '';
+            document.getElementById('fefoResults').innerHTML = '';
+        }
+
+        async function testFEFO() {
+            const resultsDiv = document.getElementById('fefoResults');
+            const warehouse = document.getElementById('fefoWarehouse').value;
+            const drugId = document.getElementById('fefoDrugId').value;
+            
+            if (!drugId) {
+                alert('Please enter Drug ID');
+                return;
+            }
+
+            resultsDiv.innerHTML = '<pre class="info">Checking...</pre>';
+
+            try {
+                const response = await fetch(`/api/warehouse/check-fefo?warehouse=${warehouse}&drug_id=${drugId}`);
+                const data = await response.json();
+                
+                let output = '';
+                if (data.success) {
+                    output = `<pre class="success">✅ Found Oldest Lot</pre>`;
+                    if (data.dt) {
+                         output += `<pre class="success">Lot: ${data.dt.lot_no}\nExpire: ${data.dt.expire_date}\nQty: ${data.dt.quantity}</pre>`;
+                    } else {
+                        output += `<pre class="error">Active Lot Not Found (Stock 0?)</pre>`;
+                    }
+                } else {
+                    output = `<pre class="error">❌ Error: ${data.message}</pre>`;
+                }
+                resultsDiv.innerHTML = output;
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<pre class="error">❌ Network Error: ${error.message}</pre>`;
+            }
         }
     </script>
 </body>

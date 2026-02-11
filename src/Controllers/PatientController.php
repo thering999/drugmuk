@@ -298,6 +298,30 @@ class PatientController extends Controller
     }
 
     /**
+     * Get AI Clinical Insight for patient
+     * 
+     * GET /api/patient/{hn}/ai-insight
+     */
+    public function getAIInsight($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $intelService = new \App\Services\IntelligenceService();
+            $insight = $intelService->getPatientInsight($hn);
+            
+            echo json_encode([
+                'success' => true,
+                'insight' => $insight
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Patient dashboard page
      * 
      * GET /patient/{hn}
@@ -314,6 +338,33 @@ class PatientController extends Controller
         
         $this->view('patient/dashboard', [
             'patient' => $profile,
+            'hn' => $hn
+        ]);
+    }
+
+    /**
+     * Patient Self-Service Portal (Mobile/LIFF)
+     * 
+     * GET /patient/portal/{hn}
+     */
+    public function portal($hn)
+    {
+        // In reality, this should be protected by a strict token or login
+        // For demo, we allow access via HN link
+        
+        $profile = $this->patientService->getProfileWithCache($hn);
+        
+        if (!$profile) {
+            echo "Private access only.";
+            exit;
+        }
+        
+        // Fetch current meds for the portal directly
+        $meds = $this->patientService->getCurrentMedications($hn);
+
+        $this->view('patient/portal', [
+            'patient' => $profile,
+            'meds' => $meds,
             'hn' => $hn
         ]);
     }

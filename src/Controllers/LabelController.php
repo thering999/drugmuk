@@ -21,7 +21,8 @@ class LabelController extends Controller
         $db = \App\Core\Database::getInstance()->getConnection();
         $stmt = $db->prepare("
             SELECT d.hn, d.patient_name, di.drug_id, dr.name as drug_name, 
-                   dr.unit, di.quantity, dr.video_url, dr.storage_advice
+                   dr.unit, di.quantity, dr.video_url, dr.storage_advice,
+                   di.usage_instruction
             FROM dispensing d
             JOIN dispensing_items di ON d.id = di.dispense_id
             JOIN drugs dr ON di.drug_id = dr.id

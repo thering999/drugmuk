@@ -38,7 +38,11 @@ class OrderController extends Controller
     public function create()
     {
         $suppliers = $this->orderModel->getSuppliers();
-        $this->view('orders/create', ['suppliers' => $suppliers]);
+        // Get all active drugs for selection
+        $db = \App\Core\Database::getInstance()->getConnection();
+        $drugs = $db->query("SELECT id, name, code, unit, price FROM drugs WHERE is_active = 1 ORDER BY name")->fetchAll(\PDO::FETCH_ASSOC);
+        
+        $this->view('orders/create', ['suppliers' => $suppliers, 'drugs' => $drugs]);
     }
 
     /**
@@ -422,5 +426,88 @@ class OrderController extends Controller
             'receive' => $receive,
             'items' => $items
         ]);
+    }
+    /**
+     * Smart Auto-Replenishment Dashboard (Track 1)
+     */
+    public function autoReplenish()
+    {
+        $intelService = new \App\Services\IntelligenceService();
+        $suggestions = $intelService->getSmartReplenishmentSuggestions();
+        
+        $this->view('orders/auto_replenish', ['suggestions' => $suggestions]);
+    }
+
+    /**
+     * Store Auto-Generated Draft POs
+     */
+    public function storeAutoPO()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: /orders/auto-replenish');
+            exit;
+        }
+
+        // CSRF Protection
+        try {
+            \App\Core\CSRF::verifyRequest();
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => 'CSRF validation failed',
+                'message' => $e->getMessage()
+            ]);
+            exit;
+        }
+
+        $items = $_POST['selected_items'] ?? [];
+        $groupedItems = [];
+
+        // Filter and Group by Supplier
+        foreach ($items as $item) {
+            if (isset($item['checked']) && $item['checked'] == 1) {
+                $supplierId = $item['supplier_id'] ?: 0; // 0 for 'Unknown/Generic'
+                $groupedItems[$supplierId][] = [
+                    'drug_id' => $item['drug_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price']
+                ];
+            }
+        }
+
+        if (empty($groupedItems)) {
+            $_SESSION['error'] = 'No items selected for replenishment.';
+            header('Location: /orders/auto-replenish');
+            exit;
+        }
+
+        $createdCount = 0;
+        foreach ($groupedItems as $supplierId => $supplierItems) {
+            
+            // Calculate total for this PO
+            $totalAmount = 0;
+            foreach ($supplierItems as $si) {
+                $totalAmount += $si['quantity'] * $si['unit_price'];
+            }
+
+            $orderData = [
+                'order_no' => 'PO-AI-' . date('Ymd-Hi') . '-' . rand(10,99),
+                'supplier_id' => $supplierId == 0 ? null : $supplierId,
+                'order_date' => date('Y-m-d'),
+                'created_by' => $_SESSION['user_id'] ?? 1,
+                'status' => 'pending', // Draft/Pending
+                'total_amount' => $totalAmount,
+                'items' => $supplierItems
+            ];
+
+            if ($this->orderModel->create($orderData)) {
+                $createdCount++;
+            }
+        }
+
+        $_SESSION['success'] = "Successfully created {$createdCount} draft purchase orders from AI suggestions.";
+        header('Location: /orders');
+        exit;
     }
 }

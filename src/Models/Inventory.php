@@ -284,14 +284,70 @@ class Inventory extends Model {
     }
 
     /**
-     * Create transfer
+     * Create transfer (and move stock)
      */
     public function createTransfer($data) {
-        $sql = "INSERT INTO inventory_transfers 
-                (from_warehouse, to_warehouse, drug_id, lot_no, quantity, transferred_by, notes)
-                VALUES (:from_warehouse, :to_warehouse, :drug_id, :lot_no, :quantity, :transferred_by, :notes)";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute($data);
+        try {
+            $this->db->beginTransaction();
+
+            // 1. Deduct from Main Warehouse (Source)
+            if ($data['from_warehouse'] === 'main') {
+                $deductSql = "UPDATE inventory 
+                              SET quantity = quantity - :qty 
+                              WHERE drug_id = :drug_id AND lot_no = :lot_no";
+                $stmt = $this->db->prepare($deductSql);
+                $stmt->execute([
+                    'qty' => $data['quantity'],
+                    'drug_id' => $data['drug_id'],
+                    'lot_no' => $data['lot_no']
+                ]);
+            }
+
+            // 2. Add to Sub Warehouse (Destination)
+            // Assuming 'to_warehouse' is the ID of subwarehouse
+            // Check if record exists
+            $checkSql = "SELECT id FROM subwarehouse_inventory 
+                         WHERE subwarehouse_id = :sw_id AND drug_id = :drug_id";
+            $stmt = $this->db->prepare($checkSql);
+            $stmt->execute([
+                'sw_id' => $data['to_warehouse'], 
+                'drug_id' => $data['drug_id']
+            ]);
+            $exists = $stmt->fetch();
+
+            if ($exists) {
+                $addSql = "UPDATE subwarehouse_inventory 
+                           SET quantity = quantity + :qty 
+                           WHERE id = :id";
+                $this->db->prepare($addSql)->execute([
+                    'qty' => $data['quantity'],
+                    'id' => $exists['id']
+                ]);
+            } else {
+                $insertSql = "INSERT INTO subwarehouse_inventory (subwarehouse_id, drug_id, quantity, min_stock, max_stock)
+                              VALUES (:sw_id, :drug_id, :qty, 0, 100)";
+                $this->db->prepare($insertSql)->execute([
+                    'sw_id' => $data['to_warehouse'],
+                    'drug_id' => $data['drug_id'],
+                    'qty' => $data['quantity']
+                ]);
+            }
+
+            // 3. Log Transfer History
+            $sql = "INSERT INTO inventory_transfers 
+                    (from_warehouse, to_warehouse, drug_id, lot_no, quantity, transferred_by, notes)
+                    VALUES (:from_warehouse, :to_warehouse, :drug_id, :lot_no, :quantity, :transferred_by, :notes)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($data);
+
+            $this->db->commit();
+            return true;
+
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            error_log("Transfer Error: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -356,5 +412,22 @@ class Inventory extends Model {
         $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Get Oldest Lot (FEFO)
+     */
+    public function getOldestLot($warehouseCode, $drugId) {
+        // Assuming warehouseCode 'main' maps to inventory table directly for now
+        // In full system, check warehouse_inventory tables
+        if ($warehouseCode === 'main') {
+            $sql = "SELECT * FROM {$this->table} 
+                    WHERE drug_id = :drug_id AND quantity > 0
+                    ORDER BY expire_date ASC LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(['drug_id' => $drugId]);
+            return $stmt->fetch();
+        }
+        return null;
     }
 }
