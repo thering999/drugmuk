@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Services\JHCIS\JHCISSyncService;
+use App\Models\Hospital;
 
 /**
  * Multi-JHCIS Hospital Management Controller

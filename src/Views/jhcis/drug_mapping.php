@@ -524,10 +524,6 @@
                         <option value="manual">กำหนดเอง (Manual)</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="notes">หมายเหตุ</label>
-                    <textarea class="form-control" id="notes" rows="3" placeholder="ระบุเหตุผลในการจับคู่ (ถ้ามี)"></textarea>
-                </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" class="btn" onclick="closeModal()">ยกเลิก</button>
                     <button type="submit" class="btn btn-primary">บันทึกการจับคู่</button>
@@ -684,6 +680,12 @@
         function closeModal() {
             document.getElementById('manual-map-modal').classList.remove('active');
             document.getElementById('manual-map-form').reset();
+            
+            // Reset modal title
+            document.querySelector('#manual-map-modal .modal-header h3').textContent = 'จับคู่ยาด้วยตนเอง';
+            
+            // Reset form submit handler
+            document.getElementById('manual-map-form').onsubmit = submitManualMap;
         }
 
         // Submit manual mapping
@@ -693,8 +695,7 @@
             const formData = {
                 jhcis_drug_code: document.getElementById('jhcis-drugcode').value,
                 drugmuk_drug_id: document.getElementById('drugmuk-drug-id').value,
-                mapping_type: document.getElementById('mapping-type').value,
-                notes: document.getElementById('notes').value
+                mapping_type: document.getElementById('mapping-type').value
             };
             
             try {
@@ -777,6 +778,74 @@
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        }
+
+        // Edit mapping
+        async function editMapping(id) {
+            try {
+                // Fetch mapping details
+                const response = await fetch(`/api/jhcis/mapping/drugs/${id}`);
+                const mapping = await response.json();
+                
+                if (mapping.success === false) {
+                    showAlert('ไม่พบข้อมูล Mapping', 'error');
+                    return;
+                }
+                
+                // Populate form with existing data
+                document.getElementById('jhcis-drugcode').value = mapping.jhcis_drug_code || '';
+                document.getElementById('drugmuk-drug-id').value = mapping.drugmuk_drug_id || '';
+                document.getElementById('mapping-type').value = mapping.mapping_type || 'manual';
+                
+                // Change form submit to update instead of create
+                const form = document.getElementById('manual-map-form');
+                form.onsubmit = async function(event) {
+                    event.preventDefault();
+                    
+                    const formData = {
+                        jhcis_drug_code: document.getElementById('jhcis-drugcode').value,
+                        drugmuk_drug_id: document.getElementById('drugmuk-drug-id').value,
+                        mapping_type: document.getElementById('mapping-type').value
+                    };
+                    
+                    try {
+                        const updateResponse = await fetch(`/api/jhcis/mapping/drugs/${id}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({...formData, _method: 'PUT'})
+                        });
+                        
+                        const result = await updateResponse.json();
+                        
+                        if (result.success) {
+                            showAlert('อัปเดต Mapping สำเร็จ!', 'success');
+                            closeModal();
+                            loadStats();
+                            loadMappings();
+                            
+                            // Reset form submit handler
+                            form.onsubmit = submitManualMap;
+                        } else {
+                            showAlert('อัปเดตล้มเหลว: ' + result.message, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error updating mapping:', error);
+                        showAlert('เกิดข้อผิดพลาดในการอัปเดต', 'error');
+                    }
+                };
+                
+                // Show modal
+                document.getElementById('manual-map-modal').classList.add('active');
+                
+                // Change modal title
+                document.querySelector('#manual-map-modal .modal-header h3').textContent = 'แก้ไขการจับคู่ยา';
+                
+            } catch (error) {
+                console.error('Error loading mapping for edit:', error);
+                showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+            }
         }
 
         // Delete mapping

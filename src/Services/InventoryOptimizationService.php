@@ -109,11 +109,47 @@ class InventoryOptimizationService
             ];
         }
         
+        // Calculate Standard Deviation of Demand (for Safety Stock)
+        $stdDev = $this->calculateStandardDeviation($quantities);
+        
+        // Calculate Safety Stock (Z-score 1.65 for 95% Service Level * StdDev * Sqrt(LeadTime))
+        // Assuming Lead Time = 1 month (or sum of lead time variance)
+        $serviceLevelZ = 1.65;
+        $leadTimeMonths = 1;
+        $safetyStock = $serviceLevelZ * $stdDev * sqrt($leadTimeMonths);
+        
+        // Calculate Reorder Point = (Avg Demand * Lead Time) + Safety Stock
+        $reorderPoint = ($lastAvg * $leadTimeMonths) + $safetyStock; 
+        
         return [
             'historical' => $historical,
             'moving_average' => $movingAvg,
-            'forecast' => $forecast
+            'forecast' => $forecast,
+            'metrics' => [
+                'avg_monthly_usage' => round($lastAvg, 2),
+                'std_dev' => round($stdDev, 2),
+                'safety_stock' => round($safetyStock, 2),
+                'reorder_point' => round($reorderPoint, 2),
+                'service_level' => '95%'
+            ]
         ];
+    }
+    
+    /**
+     * Private helper: Calculate Standard Deviation
+     */
+    private function calculateStandardDeviation(array $data): float
+    {
+        if (count($data) < 2) return 0.0;
+        
+        $mean = array_sum($data) / count($data);
+        $variance = 0.0;
+        
+        foreach ($data as $val) {
+            $variance += pow($val - $mean, 2);
+        }
+        
+        return (float)sqrt($variance / (count($data) - 1));
     }
     
     /**

@@ -44,8 +44,20 @@ class ForecastingEngine
         }
 
         // 3. Fallback to enhanced EMA with seasonal factors
+        $emaValue = $this->calculateEnhancedEMA($drugId);
+
+        // Hybrid Logic: Combined weighting if both exist
+        if ($mlForecast && $emaValue > 0) {
+            $hybridValue = ($mlForecast['forecast_quantity'] * 0.7) + ($emaValue * 0.3);
+            return [
+                'value' => round($hybridValue, 2),
+                'method' => 'HYBRID_ML_EMA',
+                'confidence' => ($mlForecast['confidence_score'] ?? 0.8) * 1.1 // Slightly higher confidence for hybrid
+            ];
+        }
+
         return [
-            'value' => $this->calculateEnhancedEMA($drugId),
+            'value' => $emaValue,
             'method' => 'ENHANCED_EMA',
             'confidence' => 0.6
         ];
@@ -60,7 +72,7 @@ class ForecastingEngine
         file_put_contents($tmpFile, json_encode($data));
 
         $scriptPath = __DIR__ . '/../../../scripts/ai/forecast_prophet.py';
-        $command = "python3 " . escapeshellarg($scriptPath) . " " . escapeshellarg($tmpFile);
+        $command = "python " . escapeshellarg($scriptPath) . " " . escapeshellarg($tmpFile);
         
         exec($command, $output, $returnCode);
         unlink($tmpFile);

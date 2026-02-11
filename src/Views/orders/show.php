@@ -286,6 +286,7 @@
             <?php if ($order['status'] === 'pending'): ?>
             <div class="status-actions">
                 <form method="POST" action="/orders/update-status/<?= $order['id'] ?>" style="display: inline;">
+                    <?= \App\Core\CSRF::field() ?>
                     <input type="hidden" name="status" value="approved">
                     <button type="submit" class="btn btn-success" onclick="return confirm('ต้องการอนุมัติใบสั่งซื้อนี้?')">
                         ✅ อนุมัติ
@@ -293,6 +294,7 @@
                 </form>
 
                 <form method="POST" action="/orders/update-status/<?= $order['id'] ?>" style="display: inline;">
+                    <?= \App\Core\CSRF::field() ?>
                     <input type="hidden" name="status" value="cancelled">
                     <button type="submit" class="btn btn-danger" onclick="return confirm('ต้องการยกเลิกใบสั่งซื้อนี้?')">
                         ❌ ยกเลิก

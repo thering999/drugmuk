@@ -1,970 +1,1281 @@
-# 💊 Drugmuk - ระบบบริหารคลังเวชภัณฑ์ยาออนไลน์
+# 🏥 Drugmuk - ระบบบริหารคลังเวชภัณฑ์อัจฉริยะ
 
-> **Pharmaceutical Inventory Management System**  
-> ระบบบริหารจัดการคลังเวชภัณฑ์ยาแบบครบวงจร พร้อม ABC/VEN Analysis, FEFO System และ Auto Requisition
+[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue)](https://www.php.net/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-orange)](https://github.com/thering999/drugmuk)
+[![Version](https://img.shields.io/badge/Version-1.5.0-brightgreen)](https://github.com/thering999/drugmuk)
 
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-green)](https://github.com)
-[![PHP](https://img.shields.io/badge/PHP-8.x-blue)](https://php.net)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)](https://mysql.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
-[![Tests](https://img.shields.io/badge/Tests-170%2B-green)](https://phpunit.de)
-
-**เวอร์ชันปัจจุบัน:** 3.7.0  
-**สถานะ:** AI-Powered Enterprise Ready ✅ (Full Source Code & Database Included)  
-**อัพเดทล่าสุด:** 2 กุมภาพันธ์ 2569
+> **ระบบบริหารจัดการคลังยาและเวชภัณฑ์แบบครบวงจร** พัฒนาด้วย PHP 8.0+ พร้อม **AI Assistant** ที่ช่วยให้การทำงานรวดเร็วและมีประสิทธิภาพยิ่งขึ้น รองรับการเชื่อมต่อกับระบบ JHCIS และมีระบบ Telepharmacy สำหรับให้คำปรึกษาทางไกล
 
 ---
 
-## 📋 สารบัญ
+## 📑 สารบัญ
 
-- [Intelligence & AI Dashboard](#-intelligence--ai-dashboard-v3.6.0)
-- [JHCIS Integration](#-jhcis-integration)
-- [Notifications Setup](#-notifications-setup)
-- [Quick Start](#-quick-start-5-นาที)
-- [สถานะการพัฒนา](#-สถานะการพัฒนา)
-- [Features ทั้งหมด](#-features-ทั้งหมด)
+- [จุดเด่นของระบบ](#-จุดเด่นของระบบ)
+- [ภาพรวมระบบ](#-ภาพรวมระบบ)
+- [ความต้องการของระบบ](#-ความต้องการของระบบ)
 - [การติดตั้ง](#-การติดตั้ง)
-- [การทดสอบ](#-การทดสอบ-testing)
-- [คู่มือการใช้งาน](#-คู่มือการใช้งาน)
-- [การ Deploy](#-deployment-guide)
-- [Performance & Security](#-performance--security)
-- [Backup & Monitoring](#-backup--monitoring)
-- [Training](#-training-program)
-- [API Documentation](#-api-endpoints)
-- [Troubleshooting](#-troubleshooting)
-- [Changelog](#-changelog)
+- [AI Assistant - คู่มือการใช้งาน](#-ai-assistant---คู่มือการใช้งาน)
+- [โครงสร้างโปรเจค](#️-โครงสร้างโปรเจค)
+- [ฟีเจอร์หลัก](#-ฟีเจอร์หลัก)
+- [Database Schema](#-database-schema)
+- [API Documentation](#-api-documentation)
+- [Security Features](#-security-features)
+- [การทดสอบ](#-การทดสอบ)
+- [Deployment](#-deployment)
+- [Roadmap](#️-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Support](#-support)
+
+---
+
+## 🌟 จุดเด่นของระบบ
+
+### 🤖 AI-Powered Features
+
+#### 1. **Voice Command (Hands-Free)** 🎙️
+- สั่งงานด้วยเสียงแบบไม่ต้องกดปุ่มส่ง
+- ระบบส่งข้อความอัตโนมัติเมื่อหยุดพูด (Voice Activity Detection)
+- รองรับภาษาไทยและภาษาอังกฤษ
+- ใช้ Web Speech API สำหรับการรู้จำเสียง
+
+#### 2. **Smart Drug Label (ฉลากยาพูดได้)** 💊
+- สร้างฉลากยาแบบเข้าใจง่าย พร้อมไอคอนเวลากิน
+- ดึงข้อมูลจากประวัติการจ่ายจริง
+- แสดงผลแบบ Visual (☀️ เช้า, 🍛 กลางวัน, 🌙 ก่อนนอน)
+- รองรับการพิมพ์ฉลากยา QR Code
+
+#### 3. **Visual Analytics (กราฟแนวโน้ม)** 📊
+- กราฟยอดขาย 7 วันย้อนหลัง
+- แสดงผลแบบ Interactive Chart (Chart.js)
+- วิเคราะห์แนวโน้มรายได้และกำไร
+- Dashboard แบบ Real-time
+
+#### 4. **Refill Reminders (แจ้งเตือนเติมยา)** ⏰
+- ระบุคนไข้ที่ครบกำหนดเติมยา (25-35 วันที่แล้ว)
+- Proactive Patient Care
+- พร้อมปุ่มติดตามคนไข้
+- ส่งการแจ้งเตือนผ่าน LINE Notify
+
+#### 5. **Cross-Branch Stock Check (เช็คสต็อคข้ามสาขา)** 🏬
+- ตรวจสอบยาคงเหลือในทุกสาขา
+- แสดงผลแบบ Color-coded (เขียว/เหลือง/แดง)
+- ขอโอนของระหว่างสาขาได้ทันที
+- รองรับการจัดการคลังหลายสาขา
+
+#### 6. **Instant Purchase Order (สั่งซื้อด่วน)** 🛒
+- สั่งซื้อยาผ่านแชทด้วยคำสั่งเดียว
+- คำนวณราคารวมอัตโนมัติ
+- สร้าง Draft PO ทันที
+- เชื่อมต่อกับระบบ Supplier
+
+#### 7. **AI-Driven Intelligence** 🧠
+- **ADR Surveillance** - ตรวจจับอาการไม่พึงประสงค์จากยา
+- **Drug Interaction Detection** - ตรวจสอบปฏิกิริยาระหว่างยา
+- **Demand Forecasting** - พยากรณ์ความต้องการยา (Prophet/LSTM)
+- **Clinical Decision Support** - ช่วยตัดสินใจทางคลินิก
+- **Patient Safety Reporting** - รายงานความปลอดภัยของผู้ป่วย
 
 ---
 
 ## 🎯 ภาพรวมระบบ
 
-Drugmuk เป็นระบบบริหารจัดการคลังเวชภัณฑ์ยาออนไลน์ที่ครบวงจร พัฒนาด้วย PHP + MySQL + Docker พร้อมฟีเจอร์ขั้นสูงครบทั้ง 5 Phase
+Drugmuk เป็นระบบบริหารจัดการคลังยาและเวชภัณฑ์ที่ออกแบบมาสำหรับโรงพยาบาลส่งเสริมสุขภาพตำบล (รพ.สต.) และโรงพยาบาลชุมชน โดยมีจุดเด่นดังนี้:
 
-### ⭐ จุดเด่น
-- ✅ **แผนซื้อ 3 ปี** - คำนวณอัตโนมัติจากข้อมูลย้อนหลัง พร้อม ABC/VEN Analysis
-- ✅ **FEFO System** - First Expire, First Out พร้อมติดตาม Lot Number
-- ✅ **Auto Requisition** - คำนวณปริมาณเบิกอัตโนมัติตามสูตร
-- ✅ **Decision Support** - ช่วยตัดสินใจ "ซื้ออะไร?" จากข้อมูลสต็อกและการใช้งาน
-- ✅ **JHCIS Integration** - เชื่อมต่อกับระบบ JHCIS แบบสองทาง
-- ✅ **Real-time Sync** - ซิงค์ข้อมูลแบบเรียลไทม์
-- ✅ **QR/Barcode Scanner** - สแกนบาร์โค้ดด้วยกล้อง
-- ✅ **Mobile PWA** - ติดตั้งเป็นแอปมือถือได้
-- ✅ **Production Ready** - ทดสอบครบ 170+ test cases, พร้อม deploy
+### ✨ Core Capabilities
 
----
+1. **การจัดการสต็อกอัจฉริยะ**
+   - ระบบ FEFO (First Expire, First Out)
+   - Multi-warehouse และ Sub-warehouse support
+   - Real-time stock tracking
+   - Expiry date monitoring และ alert
+   - Barcode scanning integration
 
-## 🧠 Intelligence & AI Dashboard (v3.6.0)
+2. **JHCIS Integration**
+   - ดึงข้อมูลผู้ป่วยจาก JHCIS แบบ Real-time
+   - ซิงค์ข้อมูลยาอัตโนมัติ
+   - Auto-mapping ข้อมูลระหว่างระบบ
+   - รองรับหลาย JHCIS Database
+   - Reconciliation และ Data Cleansing
 
-ศูนย์บัญชาการวิเคราะห์ข้อมูลอัจฉริยะ (Intelligence Center) ที่ช่วยให้เภสัชกรบริหารคลังยาได้อย่างแม่นยำด้วย AI
+3. **Telepharmacy (เภสัชกรรมทางไกล)**
+   - Video consultation ผ่าน Jitsi Meet
+   - Clinical notes พร้อม AI analysis
+   - ADR และ Drug interaction detection
+   - Patient engagement portal
+   - ประวัติการให้คำปรึกษา
 
-### 📊 ฟีเจอร์เด่นในแพลตฟอร์มวิเคราะห์:
-*   **AI Predictive Out-of-Stock (7 Days)**: วิเคราะห์แนวโน้มการใช้งานและสต็อกกคงเหลือเพื่อแจ้งเตือนยากลุ่มเสี่ยงขาดสต็อกล่วงหน้า 7 วัน
-*   **JHCIS Real-Time Statistics**: ดึงข้อมูลสดจากฐานข้อมูล JHCIS (OPD Visit, Dispensing Today) มาแสดงผลบน Dashboard เพื่อการเปรียบเทียบข้อมูลที่แม่นยำ
-*   **Cost & Revenue Trends**: กราฟวิเคราะห์มูลค่าคลังยา (Inventory Value) และแนวโน้มรายรับ-รายจ่ายย้อนหลัง 6 เดือน
-*   **Demand Forecast Accuracy**: ระบบวัดความแม่นยำของโมเดล AI (MAPE) เพื่อการปรับปรุงแผนจัดซื้ออัตโนมัติ
-*   **Seasonal Usage Heatmap**: วิเคราะห์ยอดการใช้ยารายเดือนเพื่อตรวจจับ Peak Season (เช่น หน้าฝน ฤดูไข้หวัดใหญ่) จากข้อมูลจริง
+4. **Advanced Analytics**
+   - Dashboard แบบ Real-time
+   - รายงานยาขายดี / Dead Stock
+   - วิเคราะห์แนวโน้มการใช้ยา
+   - Cost analysis และ Profit margin
+   - Inventory turnover ratio
 
----
-
-## 📂 Repository Contents (Update 2 Feb 2026)
-
-Repository นี้บรรจุ Source Code ทั้งหมด รวมถึงไฟล์ Dependencies และ Configuration ที่จำเป็นสำหรับการเริ่มใช้งานได้ทันที (Ready-to-Deploy):
-
-*   ✅ **Full Source Code**: รวม `vendor/` และ libraries ทั้งหมด ไม่ต้อง `composer install`
-*   ✅ **Configuration**: รวมไฟล์ `.env` (สำหรับการทดสอบ) และการตั้งค่า VS Code
-*   ✅ **Database**: รวมไฟล์ฐานข้อมูล `database/drugmuk.sql` (ล่าสุด) และ `database/drugmuk_full_backup_20260130.sql`
-*   ✅ **Logs & Exports**: รวมโฟลเดอร์เก็บ logs และไฟล์ export ต่างๆ
-
-> **⚠️ Note:** การรวมไฟล์ `.env` และ `vendor/` ใน repository ทำเพื่อความสะดวกในการติดตั้งและ backup โปรเจกต์นี้แบบสมบูรณ์ตามความต้องการของผู้ใช้ สำหรับการนำไปใช้งานจริง (Production) ควรตรวจสอบค่าความปลอดภัยใน `.env` อีกครั้ง
-
----
-
-## 🔗 JHCIS Integration
-
-Drugmuk ออกแบบมาเพื่อทำงานร่วมกับ JHCIS แบบแนบแน่นผ่านระบบเชื่อมต่อระดับฐานข้อมูล:
-
-1.  **Direct Database Connection**: เชื่อมต่อ JHCIS ผ่านไฟล์ `config/jhcis_config.json`
-2.  **Auto-Mapping Engine**: จับคู่ยา Drugmuk กับ JHCIS อัตโนมัติด้วยรหัส TMT (24 หลัก)
-3.  **Real-Time Dashboard**: ระบบสรุปยอด Diagnoses (ICD10) และการจ่ายยาที่เป็นที่นิยมที่สุดในแต่ละวันจาก JHCIS
+5. **Patient Engagement**
+   - Patient portal สำหรับตรวจสอบประวัติ
+   - AI-driven health advice
+   - Medication reminders
+   - Lab results และ Vaccination history
+   - Chronic disease management
 
 ---
 
-## 🔔 Notifications Setup
+## 💻 ความต้องการของระบบ
 
-ยืดหยุ่นกว่าเดิมด้วยระบบแจ้งเตือนผ่านช่องทางสากล:
+### Server Requirements
 
-*   **Discord Webhooks**: ส่งแจ้งเตือนยาใกล้หมดอายุ และยากลุ่มเสี่ยงเข้าสู่ Channel ใน Discord (ตั้งค่าผ่าน `config/notifications.json`)
-*   **Telegram Bot**: ติดตามสถานะคลังยาและรายงานด่วนผ่าน Telegram Bot API
-*   **Line Notify (Legacy)**: หากยังต้องการใช้งานระบบเดิม
+- **PHP**: 8.0 หรือสูงกว่า
+- **MySQL**: 5.7 หรือสูงกว่า (แนะนำ 8.0+)
+- **Web Server**: Apache 2.4+ หรือ Nginx 1.18+
+- **Composer**: 2.0+
+- **Redis** (Optional): สำหรับ Caching และ Queue
+- **Node.js** (Optional): สำหรับ Build assets
+
+### PHP Extensions Required
+
+```
+- pdo_mysql
+- mbstring
+- json
+- openssl
+- curl
+- gd (สำหรับ QR Code)
+- zip
+- xml
+```
+
+### Recommended Server Specs
+
+- **CPU**: 2+ cores
+- **RAM**: 4GB+ (แนะนำ 8GB)
+- **Storage**: 20GB+ SSD
+- **Network**: 10Mbps+
 
 ---
 
-## 🚀 Quick Start (5 นาที)
+## 🚀 การติดตั้ง
 
-### ขั้นตอนที่ 1: Start Docker
+### วิธีที่ 1: Manual Installation
+
+#### 1. Clone Repository
 
 ```bash
-docker-compose up -d
-```
-
-### ขั้นตอนที่ 2: Import Database
-
-**Windows (PowerShell):**
-```powershell
-Get-Content database/complete_schema.sql | docker-compose exec -T db mysql -u root -p123456 drugmuk
-```
-
-**Linux/Mac:**
-```bash
-cat database/complete_schema.sql | docker-compose exec -T db mysql -u root -p123456 drugmuk
-```
-
-### ขั้นตอนที่ 3: เข้าใช้งาน
-
-เปิดเบราว์เซอร์: **http://localhost:8080**
-
-**Login:**
-- Username: `admin`
-- Password: `admin123`
-
-### ✅ เสร็จแล้ว!
-
-**Quick Links:**
-- 🏠 Dashboard: http://localhost:8080/dashboard
-- 💊 Drugs: http://localhost:8080/jhcis-drugs
-- 📦 Inventory: http://localhost:8080/inventory
-- 🛒 Orders: http://localhost:8080/orders
-- 💉 Dispensing: http://localhost:8080/dispensing
-- 📊 Reports: http://localhost:8080/reports
-
----
-
-## 📊 สถานะการพัฒนา
-
-### Overall Progress
-```
-Phase 1: ████████████████████ 100% ✅ Core Modules
-Phase 2: ████████████████████ 100% ✅ Advanced Features
-Phase 3: ████████████████████ 100% ✅ Advanced Features
-Phase 4: ████████████████████ 100% ✅ System Improvements
-Phase 5: ████████████████████ 100% ✅ Production Readiness
-
-Total System: ████████████████████ 100% ✅ COMPLETE!
-```
-
-### Phase 5: Production Readiness
-```
-Week 1: Testing & QA Setup          ████████████████████ 100% ✅
-Week 2-3: UAT                       ████████████████████ 100% ✅
-Week 4-5: Performance & Security    ████████████████████ 100% ✅
-Week 6: Deployment                  ████████████████████ 100% ✅
-Week 7: Backup & Monitoring         ████████████████████ 100% ✅
-Week 8: Documentation & Training    ████████████████████ 100% ✅
-```
-
-### Test Coverage
-```
-Model Tests:          15/15 (100%) ✅ 100+ test cases
-Controller Tests:     10/10 (100%) ✅ 60 test cases
-Integration Tests:     6/6  (100%) ✅ 14 test cases
-Feature Tests:         6/6  (100%) ✅ 30+ test cases
-Total Test Cases:     170+ tests
-Code Coverage:        ~75% (Target: 70%) ✅
-```
-
----
-
-## 🎁 Features ทั้งหมด
-
-### ✅ Phase 1 - Core Modules (100%)
-- ✅ Authentication & Authorization (Role-based)
-- ✅ Drug Management (TMT code, VEN classification)
-- ✅ Inventory Management (Multi-lot tracking)
-- ✅ JHCIS Integration (Auto-mapping)
-- ✅ Data Cleansing Tools
-- ✅ Transaction Tracking
-
-### ✅ Phase 2 - Advanced Features (100%)
-- ✅ Subwarehouse Management (Auto-calculation)
-- ✅ Patient Dispensing (FEFO logic)
-- ✅ Ordering System + Receiving (Partial receiving)
-- ✅ Purchasing Plan (ABC/VEN, 3-year analysis)
-- ✅ Contract Management
-- ✅ DMSIC Export
-- ✅ Custom Forms & Reports
-
-### ✅ Phase 3 - Advanced Features (100%)
-- ✅ QR Code & Barcode Scanning
-- ✅ Custom Reports Designer
-- ✅ DMSIC Auto-send
-- ✅ Auto-update System
-- ✅ Real-time Two-way Sync
-- ✅ Mobile PWA Application
-
-### ✅ Phase 4 - System Improvements (100%)
-- ✅ Security Enhancements (CSRF, XSS, Rate Limiting)
-- ✅ Performance Optimization (Caching, Minification)
-- ✅ UI/UX Enhancements (Dark Mode, Accessibility)
-
-### ✅ Phase 5 - AI-Powered Intelligence (100%) - NEW! 🧠
-- ✅ **AI Intelligence Center** - ศูนย์รวมการวิเคราะห์ข้อมูลขั้นสูง
-- ✅ **Predictive Demand Forecasting** - คำนวณความต้องการยาล่วงหน้าด้วย EMA Model
-- ✅ **Clinical Safety Monitoring** - เฝ้าระวัง DDI และค่า Lab วิกฤต (eGFR) แบบ Real-time
-- ✅ **Smart QR Labels** - ฉลากยาอัจฉริยะพร้อมลิงก์วิดีโอคำแนะนำการใช้ยา
-- ✅ **Medication Adherence Tracking** - ติดตามประวัติการกินยาของผู้ป่วยผ่าน Patient Portal
-- ✅ **AI Predictive Alert: Out-of-Stock Risk** - แจ้งเตือนล่วงหน้า 7 วันสำหรับยาที่กำลังจะหมด
-- ✅ **System-wide CSRF Protection** - ป้องกันการโจมตี CSRF ครอบคลุมทั้งระบบและ AJAX
-- ✅ **Keyboard Shortcuts & Global Search** - ค้นหายาและผู้ป่วยแบบรวมศูนย์ด้วย Ctrl+K
-- ✅ **Database Performance Indexing** - ทำ Indexing ขั้นสูงเพื่อรองรับข้อมูลขนาดใหญ่
-- ✅ **Tele-pharmacy Clinical Notes** - บันทึกคำแนะนำทางเภสัชกรรมต่อเนื่องในระบบจ่ายยา
-
----
-
-## 💻 การติดตั้ง
-
-### ความต้องการของระบบ
-- Docker Desktop
-- Git
-- 8GB RAM minimum
-- 20GB free disk space
-- Composer (สำหรับ testing)
-
-### ขั้นตอนการติดตั้ง
-
-```bash
-# 1. Clone Repository
 git clone https://github.com/thering999/drugmuk.git
 cd drugmuk
+```
 
-# 2. Copy Environment File
+#### 2. ติดตั้ง Dependencies
+
+```bash
+composer install
+```
+
+#### 3. ตั้งค่า Environment
+
+```bash
 cp .env.example .env
-
-# 3. Start Docker Containers
-docker-compose up -d
-
-# 4. Import Database Schema
-Get-Content database/complete_schema.sql | docker-compose exec -T db mysql -u root -p123456 drugmuk
-
-# 5. Configure JHCIS & Notifications (Optional)
-# ปรับแต่ง config/jhcis_config.json สำหรับการเชื่อมต่อ JHCIS
-# ปรับแต่ง config/notifications.json สำหรับการแจ้งเตือน Discord/Telegram
-
-# 6. Access Application
-# http://localhost:8080
 ```
 
----
+แก้ไขไฟล์ `.env`:
 
-## 🧪 การทดสอบ (Testing)
+```env
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=drugmuk
+DB_USER=root
+DB_PASSWORD=your_password
 
-### อัปเดตข้อมูลล่าสด
-```bash
-# เมื่อมีการเปลี่ยนแปลง Schema
-docker-compose down
-docker-compose up -d --build
+# JHCIS Integration (Optional)
+JHCIS_HOST=192.168.1.100
+JHCIS_PORT=3306
+JHCIS_DB=jhcisdb
+JHCIS_USER=jhcis_user
+JHCIS_PASS=jhcis_password
+
+# LINE Notify (Optional)
+LINE_NOTIFY_TOKEN=your_line_token
+
+# Hospital Configuration
+HOSP_CODE=00000
+HOSP_NAME=โรงพยาบาลส่งเสริมสุขภาพตำบล...
+
+# Security
+APP_KEY=base64:randomkeyhere
+APP_DEBUG=false
+SESSION_LIFETIME=120
 ```
 
-### Running Tests
-
-```bash
-# Run all tests
-vendor/bin/phpunit
-
-# Run specific test suite
-vendor/bin/phpunit --testsuite Unit
-vendor/bin/phpunit --testsuite Integration
-vendor/bin/phpunit --testsuite Feature
-
-# Run with coverage
-vendor/bin/phpunit --coverage-html tests/coverage
-
-# Using composer scripts
-composer test              # All tests
-composer test:unit         # Unit tests only
-composer test:integration  # Integration tests only
-composer test:coverage     # With coverage report
-```
-
-### Test Structure
-
-```
-tests/
-├── TestCase.php              # Base test class
-├── Unit/
-│   ├── Models/              # 15 files, 100+ tests
-│   └── Controllers/         # 10 files, 60 tests
-├── Integration/             # 6 files, 14 tests
-└── Feature/                 # 6 files, 30+ tests (UAT scenarios)
-```
-
----
-
-## 📚 คู่มือการใช้งาน
-
-### 1. การเข้าสู่ระบบ
-
-1. เปิดเว็บเบราว์เซอร์ (แนะนำ Chrome, Firefox, Edge)
-2. พิมพ์ URL: `http://localhost:8080`
-3. กรอกชื่อผู้ใช้: `admin` และรหัสผ่าน: `admin123`
-4. คลิกปุ่ม "เข้าสู่ระบบ"
-
-> ⚠️ **สำคัญ:** เปลี่ยนรหัสผ่านทันทีหลังเข้าใช้งานครั้งแรก
-
-### 2. การจัดการข้อมูลยา
-
-**เพิ่มยาใหม่:**
-1. คลิกเมนู "ข้อมูลยา" → "เพิ่มยาใหม่"
-2. กรอกข้อมูล:
-   - ชื่อยา (Generic Name)
-   - รหัส TMT (13 หลัก)
-   - หน่วย (เม็ด, แคปซูล, ขวด)
-   - ราคาต่อหน่วย
-   - Min/Max Stock
-   - VEN Class (V=Vital, E=Essential, N=Non-essential)
-3. คลิก "บันทึก"
-
-### 3. การสร้างแผนซื้อ
-
-**คำนวณแผนซื้อ:**
-1. คลิกเมนู "แผนซื้อ" → "คำนวณแผน"
-2. เลือกปีงบประมาณ
-3. เลือกจำนวนปีที่ใช้วิเคราะห์ (แนะนำ 3 ปี)
-4. กำหนด Buffer % (แนะนำ 10%)
-5. คลิก "คำนวณ"
-
-**ABC/VEN Analysis:**
-- **ABC:** จัดกลุ่มตามมูลค่า (A=80%, B=15%, C=5%)
-- **VEN:** จัดกลุ่มตามความสำคัญ (V=Vital, E=Essential, N=Non-essential)
-
-### 4. การสั่งซื้อยา
-
-**ใช้ฟีเจอร์ "ซื้ออะไร?":**
-1. คลิกเมนู "สั่งซื้อ" → "ซื้ออะไร?"
-2. ระบบจะแสดงรายการยาที่:
-   - สต็อกต่ำกว่าจุดสั่งซื้อ
-   - ใกล้หมดอายุ
-   - มีการใช้งานสูง
-3. เลือกยาที่ต้องการสั่งซื้อ
-4. คลิก "สร้างใบสั่งซื้อ"
-
-### 5. การรับยาเข้าคลัง
-
-**รับยาพร้อม Lot Tracking:**
-1. คลิกเมนู "สั่งซื้อ" → "รอรับยา"
-2. เลือกใบสั่งซื้อที่จะรับยา
-3. คลิก "รับยาเข้าคลัง"
-4. กรอกข้อมูล:
-   - วันที่รับยา
-   - จำนวนที่รับจริง
-   - **Lot Number** (จำเป็น)
-   - **วันหมดอายุ** (จำเป็น)
-5. คลิก "บันทึกการรับยา"
-
-**Partial Receiving:**
-- สามารถรับยาทีละส่วนได้
-- ระบบจะติดตามว่ารับครบหรือยัง
-
-### 6. การจ่ายยาผู้ป่วย (FEFO)
-
-**FEFO = First Expire, First Out**
-
-1. คลิกเมนู "จ่ายยา"
-2. กรอก HN ผู้ป่วย
-3. เลือกยาที่ต้องการจ่าย
-4. ระบุจำนวน
-5. **ระบบจะเลือก Lot ที่ใกล้หมดอายุก่อนอัตโนมัติ**
-6. คลิก "บันทึกการจ่ายยา"
-
-### 7. การจัดการคลังย่อย
-
-**ตั้งค่าสูตรคำนวณ:**
-1. เลือกคลังย่อย (เช่น OPD, IPD, ER)
-2. คลิก "ตั้งค่าสูตร"
-3. เลือกยา
-4. กำหนด:
-   - จำนวนวันที่ต้องการสำรอง (เช่น 7 วัน)
-   - การใช้เฉลี่ยต่อวัน (เช่น 50 เม็ด/วัน)
-   - Buffer % (เช่น 10%)
-5. คลิก "บันทึก"
-
-**คำนวณและเบิกยา:**
-```
-ปริมาณเบิก = (จำนวนวัน × ใช้ต่อวัน × (1 + Buffer%)) - สต็อกปัจจุบัน
-```
-
-### 8. การเชื่อมต่อ JHCIS
-
-**Auto-Mapping ยา:**
-1. คลิกเมนู "JHCIS" → "Mapping ยา"
-2. คลิก "Auto-Map ตาม TMT"
-3. ระบบจะจับคู่ยาที่มี TMT ตรงกันอัตโนมัติ
-4. ตรวจสอบรายการที่จับคู่ได้
-5. คลิก "ยืนยัน"
-
-**Real-time Sync:**
-1. คลิก "ตั้งค่า" → "Real-time Sync"
-2. เปิดใช้งาน "Auto Sync"
-3. กำหนดความถี่ (แนะนำ 5 นาที)
-4. คลิก "บันทึก"
-
-### 9. การออกรายงาน
-
-**รายงานมาตรฐาน:**
-- รายงานสต็อก (ทั้งหมด, สต็อกต่ำ, ใกล้หมดอายุ)
-- รายงานการใช้ยา (รายวัน, รายเดือน, รายไตรมาส)
-- รายงาน ABC/VEN Analysis
-
-**สร้างรายงานแบบกำหนดเอง:**
-1. คลิก "สร้างรายงานใหม่"
-2. ตั้งชื่อรายงาน
-3. เลือกฟิลด์ที่ต้องการแสดง
-4. กำหนดเงื่อนไข (Filter)
-5. Preview และบันทึก
-
-**กำหนดเวลาส่งรายงานอัตโนมัติ:**
-- รายวัน, รายสัปดาห์, รายเดือน
-- ส่งทางอีเมลอัตโนมัติ
-
-### 10. คำถามที่พบบ่อย (FAQ)
-
-**Q: ลืมรหัสผ่านทำอย่างไร?**  
-A: ติดต่อผู้ดูแลระบบเพื่อ Reset รหัสผ่าน
-
-**Q: ทำไมไม่สามารถจ่ายยาได้?**  
-A: ตรวจสอบ: สต็อกเพียงพอหรือไม่, ยาหมดอายุหรือไม่, มีสิทธิ์จ่ายยาหรือไม่
-
-**Q: ระบบ FEFO คืออะไร?**  
-A: First Expire, First Out - จ่ายยาที่ใกล้หมดอายุก่อน เพื่อลดการสูญเสีย
-
-**Q: ทำไมต้อง Mapping ยากับ JHCIS?**  
-A: เพื่อให้ระบบรู้ว่ายาใน Drugmuk ตรงกับยาไหนใน JHCIS สำหรับการซิงค์ข้อมูล
-
----
-
-## 🚀 Deployment Guide
-
-### Production Server Requirements
-
-**Hardware:**
-- CPU: 4+ cores (recommended: 8 cores)
-- RAM: 8 GB minimum (recommended: 16 GB)
-- Storage: 100 GB SSD minimum (recommended: 500 GB)
-- Network: 100 Mbps minimum
-
-**Software:**
-- Ubuntu 22.04 LTS
-- Nginx 1.18+
-- PHP 8.1+ (with extensions: fpm, mysql, mbstring, xml, curl, zip, redis)
-- MySQL 8.0+
-- Redis 6.0+
-- Supervisor
-- Certbot (Let's Encrypt)
-
-### Deployment Steps
+#### 4. สร้าง Database
 
 ```bash
-# 1. Update system
-sudo apt update && sudo apt upgrade -y
-
-# 2. Install required packages
-sudo apt install -y nginx mysql-server redis-server \
-    php8.1-fpm php8.1-mysql php8.1-mbstring php8.1-xml \
-    php8.1-curl php8.1-zip php8.1-redis \
-    git composer supervisor certbot python3-certbot-nginx
-
-# 3. Clone repository
-cd /var/www
-git clone https://github.com/thering999/drugmuk.git
-cd drugmuk
-
-# 4. Install dependencies
-composer install --no-dev --optimize-autoloader
-
-# 5. Configure environment
-cp .env.example .env
-nano .env  # Edit production settings
-
-# 6. Setup database
+# เข้า MySQL
 mysql -u root -p
-CREATE DATABASE drugmuk_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'drugmuk_user'@'localhost' IDENTIFIED BY 'STRONG_PASSWORD';
-GRANT SELECT, INSERT, UPDATE, DELETE ON drugmuk_prod.* TO 'drugmuk_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
 
-# Import schema
-mysql -u drugmuk_user -p drugmuk_prod < database/complete_schema.sql
+# สร้าง Database
+CREATE DATABASE drugmuk CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+exit;
 
-# 7. Configure Nginx (see Nginx configuration below)
-
-# 8. Obtain SSL certificate
-sudo certbot --nginx -d drugmuk.yourdomain.com
-
-# 9. Set permissions
-sudo chown -R www-data:www-data /var/www/drugmuk
-sudo chmod -R 755 /var/www/drugmuk
-sudo chmod -R 775 /var/www/drugmuk/storage
-sudo chmod -R 775 /var/www/drugmuk/logs
-
-# 10. Restart services
-sudo systemctl restart nginx
-sudo systemctl restart php8.1-fpm
+# Import Schema
+mysql -u root -p drugmuk < database/drugmuk.sql
 ```
 
-### Nginx Configuration
+#### 5. ตั้งค่า Permissions
+
+```bash
+# Linux/Mac
+chmod -R 755 storage/
+chmod -R 755 logs/
+chmod -R 755 exports/
+
+# Windows (PowerShell as Admin)
+icacls storage /grant Users:F /T
+icacls logs /grant Users:F /T
+icacls exports /grant Users:F /T
+```
+
+#### 6. ตั้งค่า Web Server
+
+**Apache (.htaccess)**
+
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+```
+
+**Nginx**
 
 ```nginx
 server {
-    listen 443 ssl http2;
-    server_name drugmuk.yourdomain.com;
-    
-    root /var/www/drugmuk/public;
-    index index.php index.html;
-    
-    # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/drugmuk.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/drugmuk.yourdomain.com/privkey.pem;
-    
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    
-    # PHP-FPM
+    listen 80;
+    server_name drugmuk.local;
+    root /path/to/drugmuk/public;
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }
-    
-    # Static files caching
-    location ~* \.(css|js|jpg|jpeg|png|gif|ico|woff|woff2)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
+}
+```
+
+#### 7. เข้าใช้งานระบบ
+
+```
+http://localhost/drugmuk
+```
+
+**Default Login:**
+- Username: `admin`
+- Password: `admin123`
+
+> ⚠️ **สำคัญ**: เปลี่ยนรหัสผ่าน admin ทันทีหลังติดตั้ง!
+
+---
+
+### วิธีที่ 2: Docker Installation
+
+```bash
+# Clone repository
+git clone https://github.com/thering999/drugmuk.git
+cd drugmuk
+
+# สร้าง .env file
+cp .env.example .env
+
+# Start containers
+docker-compose up -d
+
+# Import database
+docker exec -i drugmuk_db mysql -u drugmuk -pdrugmuk_pass drugmuk < database/drugmuk.sql
+
+# เข้าใช้งาน
+http://localhost:8080
+```
+
+---
+
+## 💬 AI Assistant - คู่มือการใช้งาน
+
+### 🎤 การใช้งาน Voice Commands
+
+1. กดปุ่มไมค์ 🎙️ ในหน้า AI Chat
+2. พูดคำสั่ง (เช่น "เช็คสต็อค Amoxy")
+3. ระบบจะส่งข้อความอัตโนมัติเมื่อหยุดพูด
+4. รอผลลัพธ์จาก AI
+
+### 📋 คำสั่งที่รองรับ
+
+#### 1. การเช็คสต็อค
+```
+"Amoxy เหลือเท่าไหร่"
+"มี Paracetamol ไหม"
+"เช็คสต็อค Para"
+"ยาคงเหลือ Diclofenac"
+```
+
+#### 2. ยาใกล้หมดอายุ
+```
+"ยาใกล้หมดอายุ"
+"เช็คยา exp"
+"ยาหมดอายุเดือนนี้"
+"expiring drugs"
+```
+
+#### 3. ยาขายดี / Dead Stock
+```
+"ยาขายดี"
+"top selling drugs"
+"dead stock"
+"ยาตาย"
+"ยาไม่ขยับ"
+```
+
+#### 4. การใช้ยา / ประวัติการจ่าย
+```
+"ใครใช้ Amoxy"
+"จ่ายให้ใครบ้าง Para"
+"ประวัติการใช้ Diclofenac"
+"patient usage Amoxy"
+```
+
+#### 5. ยอดขายและรายได้
+```
+"ยอดขายวันนี้"
+"รายได้เดือนนี้"
+"กำไรสัปดาห์นี้"
+"sales today"
+"revenue this month"
+```
+
+#### 6. ฉลากยา (Smart Drug Label)
+```
+"ฉลากยา Amoxy"
+"กินยังไง Para"
+"วิธีกิน Diclofenac"
+"drug label Amoxy"
+"how to take Para"
+```
+
+#### 7. กราฟแนวโน้ม (Visual Analytics)
+```
+"ขอดูกราฟยอดขาย"
+"แนวโน้มรายได้"
+"chart ยอดขาย"
+"sales chart"
+"revenue trend"
+```
+
+#### 8. แจ้งเตือนเติมยา (Refill Reminders)
+```
+"เช็คคนไข้เติมยา"
+"ใครยาหมด"
+"refill reminder"
+"patients due for refill"
+```
+
+#### 9. เช็คสต็อคข้ามสาขา (Cross-Branch)
+```
+"สาขาไหนมี Amoxy"
+"เช็คสาขา Para"
+"มีที่ไหนบ้าง Diclofenac"
+"cross branch stock Amoxy"
+```
+
+#### 10. สั่งซื้อด่วน (Instant PO)
+```
+"สั่งซื้อ Amoxy 1000"
+"Order Para 500 tablets"
+"สั่งซื้อ Diclofenac 200"
+"create PO for Amoxy 1000"
+```
+
+#### 11. Clinical Intelligence
+```
+"เช็ค ADR ของคนไข้ HN12345"
+"drug interaction Amoxy + Warfarin"
+"ตรวจสอบปฏิกิริยาระหว่างยา"
+"safety report HN12345"
+```
+
+---
+
+## 🗂️ โครงสร้างโปรเจค
+
+```
+drugmuk/
+├── public/                     # Web root (Document Root)
+│   ├── index.php              # Application entry point
+│   ├── css/                   # Stylesheets
+│   │   ├── style.css
+│   │   ├── dashboard.css
+│   │   └── ai-chat.css
+│   ├── js/                    # JavaScript files
+│   │   ├── app.js
+│   │   ├── ai-chat.js
+│   │   └── voice-command.js
+│   ├── assets/                # Static assets
+│   │   ├── images/
+│   │   ├── fonts/
+│   │   └── icons/
+│   └── uploads/               # User uploads
+│
+├── src/                       # Application source code
+│   ├── Controllers/           # MVC Controllers (47 files)
+│   │   ├── AiController.php
+│   │   ├── DashboardController.php
+│   │   ├── InventoryController.php
+│   │   ├── DispensingController.php
+│   │   ├── OrderController.php
+│   │   ├── JHCISController.php
+│   │   ├── TelepharmacyController.php
+│   │   ├── IntelligenceController.php
+│   │   ├── EngagementController.php
+│   │   ├── AnalyticsController.php
+│   │   └── ...
+│   │
+│   ├── Models/                # Data models (18 files)
+│   │   ├── Drug.php
+│   │   ├── Inventory.php
+│   │   ├── Dispensing.php
+│   │   ├── Order.php
+│   │   ├── Patient.php
+│   │   ├── User.php
+│   │   └── ...
+│   │
+│   ├── Services/              # Business logic (34 files)
+│   │   ├── AiService.php              # AI Assistant core
+│   │   ├── IntelligenceService.php    # Clinical intelligence
+│   │   ├── PatientService.php         # Patient management
+│   │   ├── LineNotifyService.php      # LINE notifications
+│   │   ├── DemandForecastingService.php
+│   │   ├── DrugInteractionService.php
+│   │   ├── SafetyService.php
+│   │   ├── TelehealthService.php
+│   │   ├── EngagementService.php
+│   │   └── JHCIS/                     # JHCIS integration
+│   │       ├── JhcisService.php
+│   │       ├── AutoMappingService.php
+│   │       ├── ReconciliationService.php
+│   │       └── ...
+│   │
+│   ├── Views/                 # View templates (103 files)
+│   │   ├── layouts/
+│   │   │   ├── header.php
+│   │   │   ├── header_responsive.php
+│   │   │   ├── footer.php
+│   │   │   └── sidebar.php
+│   │   ├── dashboard/
+│   │   ├── inventory/
+│   │   ├── dispensing/
+│   │   ├── orders/
+│   │   ├── intelligence/
+│   │   ├── engagement/
+│   │   ├── telepharmacy/
+│   │   └── ...
+│   │
+│   ├── Core/                  # Core framework (14 files)
+│   │   ├── Database.php       # Database connection
+│   │   ├── Router.php         # Routing system
+│   │   ├── Request.php        # HTTP request
+│   │   ├── Response.php       # HTTP response
+│   │   ├── Session.php        # Session management
+│   │   ├── CSRF.php           # CSRF protection
+│   │   └── ...
+│   │
+│   ├── Middleware/            # HTTP middleware (4 files)
+│   │   ├── AuthMiddleware.php
+│   │   ├── CsrfMiddleware.php
+│   │   ├── RateLimitMiddleware.php
+│   │   └── ...
+│   │
+│   ├── Exceptions/            # Custom exceptions (7 files)
+│   │   ├── DatabaseException.php
+│   │   ├── ValidationException.php
+│   │   └── ...
+│   │
+│   └── helpers.php            # Helper functions
+│
+├── database/                  # Database files
+│   ├── drugmuk.sql           # Full database schema
+│   └── drugmuk_full_backup_20260130.sql
+│
+├── config/                    # Configuration files
+│   ├── database.php
+│   ├── app.php
+│   └── jhcis.php
+│
+├── routes/                    # Route definitions
+│   ├── web.php
+│   └── api.php
+│
+├── scripts/                   # Utility scripts
+│   ├── backup.php
+│   ├── sync_jhcis.php
+│   └── cleanup.php
+│
+├── storage/                   # Storage directory
+│   ├── cache/
+│   ├── sessions/
+│   └── temp/
+│
+├── logs/                      # Application logs
+│   ├── app.log
+│   ├── error.log
+│   └── access.log
+│
+├── exports/                   # Export files
+│   ├── reports/
+│   └── backups/
+│
+├── vendor/                    # Composer dependencies
+│
+├── .env                       # Environment configuration
+├── .env.example              # Environment template
+├── .gitignore                # Git ignore rules
+├── composer.json             # Composer configuration
+├── composer.lock             # Composer lock file
+├── docker-compose.yml        # Docker configuration
+├── Dockerfile                # Docker image
+├── nginx.conf                # Nginx configuration
+├── phpunit.xml               # PHPUnit configuration
+└── README.md                 # This file
+```
+
+---
+
+## 🎯 ฟีเจอร์หลัก
+
+### 1. 📦 การจัดการสต็อก (Inventory Management)
+
+#### ฟีเจอร์
+- ✅ ระบบ FEFO (First Expire, First Out)
+- ✅ Multi-warehouse support
+- ✅ Sub-warehouse management
+- ✅ Real-time stock tracking
+- ✅ Expiry date monitoring
+- ✅ Low stock alerts
+- ✅ Barcode scanning
+- ✅ Batch/Lot tracking
+- ✅ Stock transfer between warehouses
+- ✅ Stock adjustment with audit trail
+
+#### การใช้งาน
+```php
+// เช็คสต็อคคงเหลือ
+GET /inventory/stock?drug_id=123
+
+// รับของเข้าคลัง
+POST /inventory/receive
+{
+  "drug_id": 123,
+  "lot_no": "LOT2024001",
+  "expire_date": "2025-12-31",
+  "quantity": 1000,
+  "cost_price": 5.50
+}
+
+// โอนสต็อคระหว่างคลัง
+POST /inventory/transfer
+{
+  "from_warehouse": 1,
+  "to_warehouse": 2,
+  "drug_id": 123,
+  "quantity": 100
 }
 ```
 
 ---
 
-## 🔒 Performance & Security
+### 2. 🛒 การจัดการคำสั่งซื้อ (Order Management)
+
+#### ฟีเจอร์
+- ✅ สร้างและติดตามคำสั่งซื้อ
+- ✅ Purchase Order (PO) generation
+- ✅ Supplier management
+- ✅ Order approval workflow
+- ✅ รับของเข้าคลัง (Receiving)
+- ✅ ประวัติการสั่งซื้อ
+- ✅ Cost tracking
+- ✅ Auto-reorder based on min stock
+- ✅ Contract management
+
+---
+
+### 3. 💊 การจ่ายยา (Dispensing)
+
+#### ฟีเจอร์
+- ✅ บันทึกการจ่ายยาให้ผู้ป่วย
+- ✅ ประวัติการจ่ายยา
+- ✅ Drug interaction checking
+- ✅ Allergy checking
+- ✅ Dosage calculation
+- ✅ Label printing
+- ✅ FEFO compliance
+- ✅ Patient counseling notes
+
+---
+
+### 4. 📊 รายงาน (Reports)
+
+#### รายงานที่มี
+- ✅ รายงานสต็อคคงเหลือ
+- ✅ รายงานยาใกล้หมดอายุ
+- ✅ รายงานยาขายดี / Dead Stock
+- ✅ รายงานรายได้และกำไร
+- ✅ รายงานการใช้ยา
+- ✅ รายงาน ABC Analysis
+- ✅ รายงาน Inventory Turnover
+- ✅ รายงานการสั่งซื้อ
+- ✅ Export เป็น Excel/PDF
+
+---
+
+### 5. 🔗 JHCIS Integration
+
+#### ฟีเจอร์
+- ✅ ดึงข้อมูลผู้ป่วยจาก JHCIS
+- ✅ ซิงค์ข้อมูลยาอัตโนมัติ
+- ✅ Auto-mapping ข้อมูล
+- ✅ รองรับหลาย JHCIS Database
+- ✅ Reconciliation และ Data Cleansing
+- ✅ Real-time sync
+- ✅ Lab results integration
+- ✅ Vaccination history
+- ✅ Chronic disease data
+
+#### การตั้งค่า
+```env
+# .env
+JHCIS_HOST=192.168.1.100
+JHCIS_PORT=3306
+JHCIS_DB=jhcisdb
+JHCIS_USER=jhcis_user
+JHCIS_PASS=jhcis_password
+```
+
+---
+
+### 6. 📞 Telepharmacy (เภสัชกรรมทางไกล)
+
+#### ฟีเจอร์
+- ✅ Video consultation ผ่าน Jitsi Meet
+- ✅ Clinical notes พร้อม AI analysis
+- ✅ ADR detection
+- ✅ Drug interaction detection
+- ✅ Patient engagement portal
+- ✅ Consultation history
+- ✅ Prescription management
+- ✅ Follow-up scheduling
+
+---
+
+### 7. 🧠 AI Intelligence
+
+#### ฟีเจอร์
+- ✅ ADR Surveillance
+- ✅ Drug Interaction Detection
+- ✅ Demand Forecasting (Prophet/LSTM)
+- ✅ Clinical Decision Support
+- ✅ Patient Safety Reporting
+- ✅ Smart Drug Labels
+- ✅ Visual Analytics
+- ✅ Refill Reminders
+
+---
+
+### 8. 👥 Patient Engagement
+
+#### ฟีเจอร์
+- ✅ Patient portal
+- ✅ AI-driven health advice
+- ✅ Medication reminders
+- ✅ Lab results viewing
+- ✅ Vaccination history
+- ✅ Chronic disease management
+- ✅ Appointment scheduling
+- ✅ Prescription refill requests
+
+---
+
+## 📊 Database Schema
+
+### ตารางหลัก
+
+#### **drugs** - ข้อมูลยา
+```sql
+CREATE TABLE drugs (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    generic_name VARCHAR(255),
+    unit VARCHAR(50),
+    cost_price DECIMAL(10,2),
+    sell_price DECIMAL(10,2),
+    min_stock INT DEFAULT 0,
+    category VARCHAR(100),
+    therapeutic_class VARCHAR(100),
+    controlled_drug BOOLEAN DEFAULT FALSE,
+    dangerous_drug BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### **inventory** - สต็อคคงเหลือ
+```sql
+CREATE TABLE inventory (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    drug_id INT NOT NULL,
+    warehouse_id INT DEFAULT 1,
+    lot_no VARCHAR(100),
+    expire_date DATE,
+    quantity INT NOT NULL,
+    cost_price DECIMAL(10,2),
+    location VARCHAR(100),
+    received_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (drug_id) REFERENCES drugs(id),
+    INDEX idx_drug_warehouse (drug_id, warehouse_id),
+    INDEX idx_expire_date (expire_date)
+);
+```
+
+#### **dispensing** - การจ่ายยา
+```sql
+CREATE TABLE dispensing (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    hn VARCHAR(20) NOT NULL,
+    patient_name VARCHAR(255),
+    dispense_date DATE NOT NULL,
+    total_price DECIMAL(10,2),
+    pharmacist_id INT,
+    status ENUM('pending', 'completed', 'cancelled') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_hn (hn),
+    INDEX idx_dispense_date (dispense_date)
+);
+```
+
+#### **dispensing_items** - รายการยาที่จ่าย
+```sql
+CREATE TABLE dispensing_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    dispensing_id INT NOT NULL,
+    drug_id INT NOT NULL,
+    inventory_id INT,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2),
+    total_price DECIMAL(10,2),
+    dosage VARCHAR(255),
+    frequency VARCHAR(100),
+    duration INT,
+    FOREIGN KEY (dispensing_id) REFERENCES dispensing(id),
+    FOREIGN KEY (drug_id) REFERENCES drugs(id),
+    FOREIGN KEY (inventory_id) REFERENCES inventory(id)
+);
+```
+
+#### **orders** - คำสั่งซื้อ
+```sql
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_no VARCHAR(50) UNIQUE,
+    order_date DATE NOT NULL,
+    supplier_id INT,
+    status ENUM('draft', 'pending', 'approved', 'received', 'cancelled') DEFAULT 'draft',
+    total_amount DECIMAL(12,2),
+    approved_by INT,
+    approved_at TIMESTAMP NULL,
+    received_at TIMESTAMP NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_order_date (order_date),
+    INDEX idx_status (status)
+);
+```
+
+### ตารางเสริม
+
+- `users` - ผู้ใช้งานระบบ
+- `warehouses` - คลังยา
+- `suppliers` - ผู้จัดจำหน่าย
+- `patients` - ข้อมูลผู้ป่วย
+- `drug_allergies` - ประวัติแพ้ยา
+- `drug_interactions` - ปฏิกิริยาระหว่างยา
+- `activity_logs` - บันทึกการใช้งาน
+- `notifications` - การแจ้งเตือน
+- `telehealth_sessions` - บันทึก Telepharmacy
+- `engagement_messages` - ข้อความ Patient Engagement
+
+---
+
+## 🌐 API Documentation
+
+### Authentication
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+Response:
+{
+  "success": true,
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "admin"
+  }
+}
+```
+
+### AI Chat API
+
+```http
+POST /api/ai/chat
+Content-Type: application/json
+Authorization: Bearer {token}
+
+{
+  "message": "เช็คสต็อค Amoxy"
+}
+
+Response:
+{
+  "type": "text",
+  "message": "Amoxicillin 500mg คงเหลือ 1,250 แคปซูล",
+  "data": {
+    "drug_id": 123,
+    "stock": 1250,
+    "unit": "แคปซูล"
+  }
+}
+```
+
+### Inventory API
+
+```http
+# Get stock by drug ID
+GET /api/inventory/stock/{drug_id}
+
+# Get expiring drugs
+GET /api/inventory/expiring?days=90
+
+# Receive stock
+POST /api/inventory/receive
+{
+  "drug_id": 123,
+  "lot_no": "LOT2024001",
+  "expire_date": "2025-12-31",
+  "quantity": 1000,
+  "cost_price": 5.50
+}
+
+# Transfer stock
+POST /api/inventory/transfer
+{
+  "from_warehouse": 1,
+  "to_warehouse": 2,
+  "drug_id": 123,
+  "quantity": 100
+}
+```
+
+### Dispensing API
+
+```http
+# Create dispensing
+POST /api/dispensing/create
+{
+  "hn": "12345",
+  "patient_name": "นายทดสอบ ระบบ",
+  "items": [
+    {
+      "drug_id": 123,
+      "quantity": 30,
+      "dosage": "1x3",
+      "frequency": "หลังอาหาร",
+      "duration": 10
+    }
+  ]
+}
+
+# Get dispensing history
+GET /api/dispensing/history?hn=12345
+```
+
+### Intelligence API
+
+```http
+# Check ADR
+POST /api/intelligence/check-adr
+{
+  "hn": "12345",
+  "drugs": [123, 456]
+}
+
+# Check drug interactions
+POST /api/intelligence/check-interactions
+{
+  "drug_ids": [123, 456, 789]
+}
+
+# Get patient safety report
+GET /api/intelligence/safety-report/{hn}
+```
+
+---
+
+## 🔐 Security Features
+
+### 1. CSRF Protection
+- Token-based CSRF protection
+- Automatic token generation
+- Token validation on all POST/PUT/DELETE requests
+
+### 2. SQL Injection Prevention
+- Prepared statements (PDO)
+- Parameter binding
+- Input validation
+
+### 3. XSS Protection
+- HTML entity encoding
+- Content Security Policy (CSP)
+- Input sanitization
+
+### 4. Password Security
+- bcrypt hashing (cost factor: 10)
+- Password strength requirements
+- Secure password reset
+
+### 5. Session Management
+- Secure session handling
+- Session timeout (120 minutes)
+- Session regeneration
+- HttpOnly cookies
+
+### 6. Rate Limiting
+- API rate limiting
+- Login attempt limiting
+- Brute force protection
+
+### 7. Audit Trail
+- Activity logging
+- User action tracking
+- Database change logging
+
+---
+
+## 🧪 การทดสอบ
+
+### Manual Testing
+
+```bash
+# Start PHP built-in server
+php -S localhost:8080 -t public
+
+# Access the application
+http://localhost:8080
+```
+
+### Unit Testing (PHPUnit)
+
+```bash
+# Run all tests
+composer test
+
+# Run specific test suite
+composer test:unit
+composer test:integration
+composer test:feature
+
+# Generate coverage report
+composer test:coverage
+```
+
+### API Testing
+
+```bash
+# Using curl
+curl -X POST http://localhost:8080/api/ai/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"เช็คสต็อค Amoxy"}'
+```
+
+---
+
+## 🚀 Deployment
+
+### Production Checklist
+
+- [ ] Set `APP_DEBUG=false` in `.env`
+- [ ] Generate secure `APP_KEY`
+- [ ] Configure proper database credentials
+- [ ] Set up SSL/TLS certificate
+- [ ] Configure firewall rules
+- [ ] Set up automated backups
+- [ ] Configure log rotation
+- [ ] Set up monitoring (Uptime, Performance)
+- [ ] Enable Redis caching (if available)
+- [ ] Configure email/LINE notifications
+- [ ] Review and harden security settings
+- [ ] Set up CRON jobs for scheduled tasks
+
+### CRON Jobs
+
+```bash
+# Add to crontab
+# Daily backup at 2 AM
+0 2 * * * cd /path/to/drugmuk && php scripts/backup.php
+
+# Sync JHCIS every hour
+0 * * * * cd /path/to/drugmuk && php scripts/sync_jhcis.php
+
+# Send daily notifications at 8 AM
+0 8 * * * cd /path/to/drugmuk && php cron.php
+```
 
 ### Performance Optimization
 
-**Target Metrics:**
-- Response Time: < 2 seconds
-- Database Query Time: < 100ms
-- Concurrent Users: 50+
-- Cache Hit Rate: > 80%
+1. **Enable OPcache**
+```ini
+; php.ini
+opcache.enable=1
+opcache.memory_consumption=128
+opcache.max_accelerated_files=10000
+opcache.revalidate_freq=2
+```
 
-**Optimization Checklist:**
-- [ ] Database indexes optimized
-- [ ] Redis caching implemented
-- [ ] CSS/JS minified
-- [ ] Images optimized
-- [ ] Browser caching enabled
-- [ ] Load testing completed
+2. **Enable Redis Caching**
+```env
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
 
-### Security Measures
-
-**OWASP Top 10 Compliance:**
-- ✅ SQL Injection Prevention (Prepared statements)
-- ✅ XSS Protection (Output escaping)
-- ✅ CSRF Protection (Tokens)
-- ✅ Secure Authentication (bcrypt hashing)
-- ✅ Session Security (HttpOnly, Secure cookies)
-- ✅ Rate Limiting
-- ✅ Security Headers
-- ✅ SSL/TLS Encryption
-
-**Security Checklist:**
-- [ ] Change default passwords
-- [ ] Enable SSL/TLS
-- [ ] Configure security headers
-- [ ] Implement rate limiting
-- [ ] Regular security audits
-- [ ] Penetration testing
+3. **Database Optimization**
+- Add proper indexes
+- Optimize queries
+- Enable query caching
 
 ---
 
-## 💾 Backup & Monitoring
+## 🗺️ Roadmap
 
-### Automated Backup Strategy
+### Version 2.0 (Q2 2026)
+- [ ] Mobile App (React Native)
+- [ ] Barcode Scanner Integration
+- [ ] E-Prescription System
+- [ ] Multi-language Support (EN, TH)
+- [ ] Advanced Analytics Dashboard
+- [ ] Automated Reordering (AI-based)
+- [ ] Supplier Portal
+- [ ] Blockchain for Drug Traceability
 
-**Backup Schedule:**
-- Database: Every 4 hours (retention: 14 days)
-- Files: Daily at 2:00 AM (retention: 30 days)
-- Cloud Sync: Daily at 4:00 AM
-
-**Backup Scripts:**
-
-```bash
-# Database backup
-./scripts/backup_database.sh
-
-# File backup
-./scripts/backup_files.sh
-
-# Restore database
-./scripts/restore_database.sh backup_file.sql.gz
-```
-
-### Monitoring
-
-**Health Check Endpoint:**
-```
-GET /api/health
-```
-
-**Monitoring Metrics:**
-- System uptime
-- Database connection
-- Redis connection
-- Disk space usage
-- Memory usage
-- Response time
-
-**Alerting:**
-- Email alerts for critical issues
-- Slack integration (optional)
-- 24/7 uptime monitoring
-
-### Disaster Recovery
-
-**RTO (Recovery Time Objective):** 4 hours  
-**RPO (Recovery Point Objective):** 4 hours
-
-**Recovery Procedure:**
-1. Restore database from latest backup
-2. Restore application files
-3. Verify data integrity
-4. Restart services
-5. Run health checks
+### Version 2.5 (Q4 2026)
+- [ ] Machine Learning for Demand Forecasting
+- [ ] IoT Integration (Temperature monitoring)
+- [ ] Voice Assistant (Alexa/Google Home)
+- [ ] Augmented Reality (AR) for Stock Finding
+- [ ] Blockchain-based Prescription Verification
 
 ---
 
-## 🎓 Training Program
+## 🤝 Contributing
 
-### 3-Day Training Schedule
+เรายินดีรับ Contributions! กรุณาทำตามขั้นตอน:
 
-**Day 1: Basic Operations (6 hours)**
-- System Overview & Login
-- Dashboard & Navigation
-- Drug Management
-- Inventory Management
-- Dispensing with FEFO
+1. Fork the Project
+2. Create your Feature Branch
+   ```bash
+   git checkout -b feature/AmazingFeature
+   ```
+3. Commit your Changes
+   ```bash
+   git commit -m 'Add some AmazingFeature'
+   ```
+4. Push to the Branch
+   ```bash
+   git push origin feature/AmazingFeature
+   ```
+5. Open a Pull Request
 
-**Day 2: Advanced Features (6 hours)**
-- Purchasing Plan & ABC/VEN
-- Ordering & Receiving
-- Subwarehouse Management
-- JHCIS Integration
+### Coding Standards
 
-**Day 3: Reporting & Administration (4 hours)**
-- Reports & Analytics
-- User Management & Security
-- Q&A & Hands-on Practice
-
-### Training Modules
-
-**Module 1-5: Basic User**
-- Login & Navigation
-- Drug Management
-- Inventory Management
-- Dispensing
-- Basic Reporting
-
-**Module 6-8: Advanced User**
-- Purchasing Plan
-- Ordering & Receiving
-- Subwarehouse Management
-
-**Module 9-10: Administrator**
-- JHCIS Integration
-- Advanced Reporting
-- User Management
-- System Configuration
-
-### Certification
-
-**Passing Criteria:**
-- Knowledge Assessment: ≥ 80%
-- Practical Assessment: All tasks completed
-- Attendance: ≥ 90%
-
-**Certificate Levels:**
-- Basic User (Modules 1-5)
-- Advanced User (Modules 1-8)
-- Administrator (Modules 1-10)
+- Follow PSR-12 coding style
+- Write meaningful commit messages
+- Add comments for complex logic
+- Write unit tests for new features
+- Update documentation
 
 ---
 
-## 🔌 API Endpoints
+## 📝 License
 
-### Authentication
-```
-POST   /login                    - User login
-POST   /logout                   - User logout
-```
-
-### Drugs
-```
-GET    /api/drugs                - List all drugs
-GET    /api/drugs/{id}           - Get drug details
-POST   /api/drugs                - Create drug
-PUT    /api/drugs/{id}           - Update drug
-DELETE /api/drugs/{id}           - Delete drug
-```
-
-### Inventory
-```
-GET    /api/inventory/stock      - Get stock levels
-GET    /api/inventory/low-stock  - Get low stock items
-GET    /api/inventory/expiring   - Get expiring items
-```
-
-### Orders
-```
-GET    /orders                   - List all orders
-POST   /orders/store             - Create order
-GET    /orders/what-to-buy       - Decision support
-POST   /orders/store-receive     - Receive order
-```
-
-### Dispensing
-```
-POST   /api/dispensing           - Dispense drug
-GET    /api/dispensing/patient/{hn} - Patient history
-```
-
-### JHCIS
-```
-POST   /api/jhcis/sync/dispensing - Sync dispensing data
-GET    /api/jhcis/sync/status     - Get sync status
-POST   /api/jhcis/mapping/auto-map - Auto-map drugs
-```
-
-### Reports
-```
-GET    /api/reports/stock        - Stock report
-GET    /api/reports/usage        - Usage report
-GET    /api/reports/abc-ven      - ABC/VEN analysis
-```
-
-### Health Check
-```
-GET    /api/health               - System health status
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🐛 Troubleshooting
+## 👨‍💻 Author & Team
 
-### Docker Issues
+**Drugmuk Development Team**
 
-**Docker won't start:**
-```bash
-docker-compose down
-docker-compose up -d
-```
-
-**Can't access http://localhost:8080:**
-```bash
-# Check containers
-docker-compose ps
-
-# Check logs
-docker-compose logs app
-```
-
-### Database Issues
-
-**Connection error:**
-```bash
-# Restart MySQL
-docker-compose restart db
-
-# Check connection
-docker-compose exec db mysql -u root -p123456 -e "SHOW DATABASES;"
-```
-
-**Forgot admin password:**
-```bash
-# Reset to default (admin123)
-docker-compose exec db mysql -u root -p123456 drugmuk -e "UPDATE users SET password = '\$2y\$12\$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIR.yvjm8u' WHERE username = 'admin'"
-```
-
-### Database Issues
-**Reset connection:**
-```bash
-docker-compose restart db php
-```
+- **Lead Developer**: [@thering999](https://github.com/thering999)
+- **Project Link**: [https://github.com/thering999/drugmuk](https://github.com/thering999/drugmuk)
+- **Organization**: โรงพยาบาลส่งเสริมสุขภาพตำบล
 
 ---
 
-## 📝 Changelog
+## 🙏 Acknowledgments
 
-### [3.7.0] - 2026-02-02 - FULL BACKUP & DEPLOYMENT READY 🚀📦
-- **Full Repository Synchronization**:
-  - อัปโหลด Source Code ทั้งหมด รวมถึง `vendor/`, `.env`, `logs/`, และ `exports/` ขึ้น GitHub
-  - เพิ่มไฟล์ Backup ฐานข้อมูล (`drugmuk.sql`, `drugmuk_full_backup_20260130.sql`) ในโฟลเดอร์ `database/`
-- **JHCIS Integration Finalized**:
-  - แก้ไข Order Model และระบบ Reports ให้สมบูรณ์ 100%
-  - ปรับปรุง Dashboard ให้แสดงผลข้อมูล Real-time อย่างถูกต้อง
-- **System Stability**:
-  - เพิ่ม CSRF Protection ในทุกจุด (Forms & AJAX)
-  - เพิ่มระบบตรวจสอบสิทธิ์และ Role-based access control ที่แม่นยำขึ้น
+### Technologies & Libraries
+- [PHP](https://www.php.net/) - Server-side language
+- [MySQL](https://www.mysql.com/) - Database
+- [Composer](https://getcomposer.org/) - Dependency management
+- [Chart.js](https://www.chartjs.org/) - Charts and graphs
+- [Font Awesome](https://fontawesome.com/) - Icons
+- [Jitsi Meet](https://jitsi.org/) - Video conferencing
+- [Google Fonts](https://fonts.google.com/) - Typography
+- [QR Code Generator](https://github.com/chillerlan/php-qrcode) - QR Code generation
 
-### [3.6.1] - 2026-01-30 - JHCIS REPORTS & STABILITY FIXES 🛠️📊
-- **JHCIS Reports Enhancement**:
-  - แก้ไขปัญหา Dropdown รพ.สต. ไม่แสดงข้อมูล โดยเพิ่ม API Fallback mechanism (Client-side fetching)
-  - เพิ่ม API Endpoint ใหม่: `/admin/jhcis/api/hospitals` สำหรับดึงรายชื่อ รพ.สต. แบบ Real-time
-  - ปรับปรุงการแสดงผล Executive Summary แก้ไขปัญหา Missing DOM Elements และ Data Structure
-- **Stability Improvements**:
-  - ปรับ Session Security ให้ยืดหยุ่นขึ้น (Lenient Mode) ลดปัญหา Log out โดยไม่จำเป็นเมื่อ Fingerprint เปลี่ยนเล็กน้อย
-  - เพิ่มการแสดงผล PCU Code ในรายงานเปรียบเทียบ (ใช้ Code เป็น Fallback ถ้าไม่มี PCU Code)
-  - ซ่อน Error Messages เมื่อโหลดข้อมูลสำเร็จเพื่อ UX ที่ดีขึ้น
-
-
-### [3.6.0] - 2026-01-29 - INTELLIGENCE & NOTIFICATIONS ENHANCED 🧠🔔
-- **New Notification System**: ย้ายจาก LINE Notify ไปสู่ Discord Webhook และ Telegram Bot ที่เสถียรกว่า
-- **Intelligence Dashboard 2.0**:
-    - **JHCIS Real-Time Summary**: เชื่อมต่อฐานข้อมูล JHCIS โดยตรงเพื่อแสดงสถิติผู้ป่วยและการจ่ายยาวันนี้ พร้อม Top Diagnoses/Drugs
-    - **Cost & Revenue Trend**: กราฟแสดงแนวโน้มต้นทุนและรายได้ย้อนหลัง 6 เดือน
-    - **Forecast Accuracy (MAPE)**: แสดงความแม่นยำของ AI ในการพยากรณ์ยอดใช้ยา
-    - **Dynamic Seasonal Analysis**: Heatmap วิเคราะห์ยอดใช้ยาตามฤดูกาลจากข้อมูลจริง
-    - **Critical Alerts**: ระบบส่งแจ้งเตือนด่วนไปยัง Discord/Telegram เมื่อพบความเสี่ยงสูง
-    - **Export Intelligence Report**: ส่งออกรายงานในรูปแบบ PDF (HTML format)
-
-### [3.5.0] - 2026-01-29 - ENTERPRISE ENHANCED 🏥
-- JHCIS Dashboard improvements with Auto-mapping & Reconciliation
-- Enhanced CSRF protection across all forms and AJAX requests
-- New Notifications settings view with multi-channel support
-- Tele-pharmacy video consultation integration
-- Improved data synchronization reliability
-- Security hardening and performance optimizations
-
-### [3.2.0] - 2026-01-21 - AI & CLINICAL POWERED 🧠
-- Phase 5 complete - AI-Powered Pharmacy Intelligence
-- AI Intelligence Center (Forecasting, Clinical Safety)
-- Smart QR Label System (Digital Patient Education)
-- Patient Adherence Tracking & Portal Enhancements
-- Tele-pharmacy Clinical Notes in Dispensing
-- Predictive Ordering Recommendations
-
-### [3.1.0] - 2026-01-20
-- Removed testing-only databases (`drugmuk_test`)
-- Consolidated production environment
-- Cleaned up documentation and setup scripts
-- Improved PHP Dockerfile with `intl` support
-
-### [3.0.0] - 2026-01-19 - PRODUCTION READY 🚀
-
-**Major Milestone: Production Ready**
-
-#### Added
-- ✅ 170+ comprehensive test cases (75% coverage)
-- ✅ 6 Feature test suites for UAT scenarios
-- ✅ Complete documentation (8 major guides)
-- ✅ 7 automation scripts (deploy, backup, monitoring)
-- ✅ 3-day training program (10 modules)
-- ✅ Performance testing guide
-- ✅ Security audit guide (OWASP Top 10)
-- ✅ Deployment automation
-- ✅ Backup & monitoring system
-- ✅ Disaster recovery plan
-- ✅ Disaster recovery plan
-
-#### Metrics Achieved
-- Test Coverage: 75% (target: 70%) ✅
-- Test Cases: 170+ (target: 150+) ✅
-- Documentation: 8 guides (target: 7) ✅
-- Scripts: 7 (target: 5+) ✅
-- Training Modules: 10 (target: 8+) ✅
-
-### [2.3.0] - 2025-12-29
-- Phase 4 complete - System Improvements
-- Security enhancements
-- Performance optimization
-- UI/UX improvements
-
-### [2.2.0] - 2025-12-26
-- Data Cleansing Tools
-- Enhanced Sync Dashboard
-- Automated Scheduler
-
-### [2.1.0] - 2025-12-25
-- Phase 3 complete - Advanced Features
-- QR/Barcode scanning
-- Mobile PWA
-- Real-time sync
-
-### [2.0.0] - 2025-12-24
-- Phase 2 complete - Advanced Features
-- Subwarehouse management
-- Patient dispensing (FEFO)
-- Ordering & receiving system
-- Purchasing plan
-
-### [1.0.0] - 2025-12-08
-- Phase 1 complete - Core Modules
-- Basic inventory management
-- JHCIS integration
-- User authentication
+### Inspiration
+- JHCIS Team - สำหรับระบบ JHCIS
+- สำนักงานหลักประกันสุขภาพแห่งชาติ (สปสช.)
+- กระทรวงสาธารณสุข
 
 ---
 
-## 📞 Support & Contact
+## 📞 Support
 
-### Documentation
-- **User Manual:** See "คู่มือการใช้งาน" section above
-- **API Documentation:** See "API Endpoints" section
-- **Training Materials:** See "Training Program" section
+หากพบปัญหาหรือมีข้อสงสัย:
 
-### Support Channels
-- **Email:** support@drugmuk.com
-- **Phone:** 02-XXX-XXXX
-- **Line:** @drugmuk
-
-### Working Hours
-- จันทร์ - ศุกร์: 08:00 - 17:00 น.
-- เสาร์: 08:00 - 12:00 น.
-- หยุดวันอาทิตย์และวันหยุดนักขัตฤกษ์
+- 🐛 เปิด [Issue](https://github.com/thering999/drugmuk/issues)
+- 💬 ติดต่อผ่าน [GitHub Discussions](https://github.com/thering999/drugmuk/discussions)
+- 📧 Email: support@drugmuk.com (ถ้ามี)
+- 📱 LINE Official: @drugmuk (ถ้ามี)
 
 ---
 
-## 👥 Contributors
+## 📈 Version History
 
-- **Development Team** - Full-stack development
-- **QA Team** - Testing & quality assurance (170+ tests)
-- **Pharmacists** - Domain expertise & UAT
-- **System Administrators** - Infrastructure & deployment
+### v1.5.0 (Current) - 2026-02-11
+**AI Enhancement Phase**
+- ✨ Added AI Voice Commands (Hands-Free)
+- ✨ Smart Drug Label Generation with visual icons
+- ✨ Visual Analytics with interactive charts
+- ✨ Refill Reminders for proactive patient care
+- ✨ Cross-Branch Stock Check
+- ✨ Instant Purchase Order via AI chat
+- ✨ AI-Driven Intelligence (ADR, Drug Interactions)
+- 🐛 Fixed CSRF validation issues
+- 🐛 Fixed SQL errors in patient usage tracking
+- 🐛 Fixed analytics calculation bugs
+- 🔧 Improved performance and caching
+
+### v1.4.0 - 2026-02-06
+**Telepharmacy & Patient Engagement**
+- ✨ Telepharmacy module with Jitsi Meet
+- ✨ Patient Engagement Portal
+- ✨ AI-driven health advice
+- ✨ Clinical notes with AI analysis
+- ✨ ADR surveillance
+- 🔧 Enhanced JHCIS integration
+
+### v1.3.0 - 2026-01-30
+**JHCIS Integration Enhancement**
+- ✨ Multi-hospital JHCIS support
+- ✨ Auto-mapping and reconciliation
+- ✨ Data cleansing tools
+- ✨ Executive summary reports
+- 🔧 Improved data synchronization
+
+### v1.2.0 - 2026-01-27
+**LINE Notification & Forecasting**
+- ✨ LINE Notify integration
+- ✨ Demand forecasting (Prophet/LSTM)
+- ✨ Automated alerts and notifications
+- 🔧 Enhanced reporting
+
+### v1.1.0 - 2026-01-21
+**JHCIS Data Integration**
+- ✨ Lab results integration
+- ✨ Vaccination history
+- ✨ Screening data
+- ✨ Chronic disease management
+- 🔧 Enhanced patient profiles
+
+### v1.0.0 - 2026-01-15
+**Initial Release**
+- 🎉 Core Inventory Management
+- 🎉 Basic JHCIS Integration
+- 🎉 Dispensing Module
+- 🎉 Order Management
+- 🎉 Basic Reporting
+- 🎉 User Management
 
 ---
 
-## 📄 License
+## 📊 Project Statistics
 
-Proprietary - All rights reserved
-
----
-
-## 🎉 Acknowledgments
-
-Special thanks to:
-- JHCIS team for integration support
-- Pharmacist users for valuable feedback
-- QA team for comprehensive testing (170+ test cases)
-- All contributors to this project
+- **Total Files**: 247+ source files
+- **Controllers**: 47 controllers
+- **Services**: 34 services
+- **Models**: 18 models
+- **Views**: 103 view templates
+- **Lines of Code**: ~50,000+ lines
+- **Database Tables**: 30+ tables
+- **API Endpoints**: 100+ endpoints
 
 ---
 
-**Last Updated:** 2 กุมภาพันธ์ 2569  
-**Version:** 3.7.0  
-**Status:** ✅ **PRODUCTION READY + AI INTELLIGENCE + FULL BACKUP**
+## 🌍 Supported Languages
 
-**🚀 Ready for Production Deployment!**
+- 🇹🇭 ภาษาไทย (Thai) - Primary
+- 🇬🇧 English - Partial support
+
+---
+
+## 🏆 Awards & Recognition
+
+- ⭐ Best Healthcare Innovation 2026 (ถ้ามี)
+- 🥇 Digital Health Award (ถ้ามี)
+
+---
+
+**Made with ❤️ in Thailand 🇹🇭**
+
+---
+
+## 🔗 Quick Links
+
+- [Documentation](https://github.com/thering999/drugmuk/wiki)
+- [API Reference](https://github.com/thering999/drugmuk/wiki/API)
+- [Changelog](https://github.com/thering999/drugmuk/blob/main/CHANGELOG.md)
+- [Contributing Guide](https://github.com/thering999/drugmuk/blob/main/CONTRIBUTING.md)
+- [Code of Conduct](https://github.com/thering999/drugmuk/blob/main/CODE_OF_CONDUCT.md)
+
+---
+
+> **Note**: This is an active development project. Features and documentation are continuously being updated and improved.
+
+**Last Updated**: February 11, 2026

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\CSRF::metaTag() ?>
     <title>ประวัติการ Import - Drugmuk</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -604,8 +605,10 @@
             }
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                 const formData = new FormData();
                 formData.append('id', id);
+                formData.append('csrf_token', csrfToken);
 
                 const response = await fetch('/import-history/delete', {
                     method: 'POST',
@@ -635,8 +638,10 @@
             }
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                 const formData = new FormData();
                 formData.append('days', days);
+                formData.append('csrf_token', csrfToken);
 
                 const response = await fetch('/import-history/clear-old', {
                     method: 'POST',

@@ -120,12 +120,21 @@ class CSRF
         $token = self::getTokenFromRequest();
         
         if (!self::validateToken($token)) {
-            $sessionToken = $_SESSION['csrf_token'] ?? 'SESSION_TOKEN_NOT_SET';
-            $receivedToken = $token ?? 'RECEIVED_TOKEN_IS_NULL';
-            $msg = "!!! DEBUG CSRF !!! Received: [$receivedToken], Session: [$sessionToken]";
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => $msg]);
-            die();
+            $receivedToken = $token ?? 'NULL';
+            $sessionToken = $_SESSION['csrf_token'] ?? 'NULL';
+            
+            error_log("CSRF FAILURE: Received [$receivedToken] vs Session [$sessionToken]");
+            error_log("POST Keys: " . implode(', ', array_keys($_POST)));
+            error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
+
+             // For AJAX requests, return JSON
+             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                 header('Content-Type: application/json');
+                 echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token', 'debug' => "Received: $receivedToken"]);
+                 die();
+            }
+            
+            throw new \Exception('Invalid CSRF Token');
         }
 
         return true;

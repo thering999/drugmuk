@@ -41,10 +41,10 @@ class ChronicDiseaseService
                         MAX(pcd.diagnosed_date) as latest_diagnosis,
                         pvs.last_visit_date,
                         pvs.total_visits
-                    FROM patient_chronic_diseases pcd
+                    FROM patient_chronic_diseases_cache pcd
                     INNER JOIN patient_profile_cache ppc ON pcd.hn = ppc.hn
                     LEFT JOIN patient_visit_summary pvs ON pcd.hn = pvs.hn
-                    WHERE pcd.status = 'active'";
+                    WHERE 1=1";
             
             $params = [];
             
@@ -427,14 +427,13 @@ class ChronicDiseaseService
             $stats = [];
             
             // Total chronic patients
-            $sql = "SELECT COUNT(DISTINCT hn) as total FROM patient_chronic_diseases WHERE status = 'active'";
+            $sql = "SELECT COUNT(DISTINCT hn) as total FROM patient_chronic_diseases_cache";
             $stmt = $this->db->query($sql);
             $stats['total_patients'] = $stmt->fetch()['total'];
             
             // Patients by disease
             $sql = "SELECT disease_name, COUNT(*) as count 
-                    FROM patient_chronic_diseases 
-                    WHERE status = 'active'
+                    FROM patient_chronic_diseases_cache 
                     GROUP BY disease_name 
                     ORDER BY count DESC 
                     LIMIT 10";

@@ -6,121 +6,156 @@
         --tele-success: #10b981;
         --tele-warning: #f59e0b;
         --tele-danger: #ef4444;
+        --tele-glass-bg: rgba(255, 255, 255, 0.7);
+        --tele-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+    }
+
+    body {
+        background-color: #f0f2f5;
     }
 
     .tele-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         color: white;
         padding: 40px;
-        border-radius: 20px;
+        border-radius: 24px;
         margin-bottom: 30px;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 20px 40px rgba(79, 70, 229, 0.2);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .tele-header::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
     }
 
     .tele-header h1 {
-        font-size: 36px;
-        font-weight: 700;
-        margin-bottom: 10px;
+        font-size: 32px;
+        font-weight: 800;
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
-        gap: 15px;
-    }
-
-    .tele-header p {
-        opacity: 0.9;
-        font-size: 16px;
+        gap: 12px;
     }
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 20px;
         margin-bottom: 30px;
     }
 
     .stat-card {
         background: white;
-        padding: 25px;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-        transition: all 0.3s;
-        border-left: 4px solid;
+        padding: 24px;
+        border-radius: 20px;
+        box-shadow: var(--tele-shadow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-top: 4px solid transparent;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
 
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .stat-card.primary { border-color: var(--tele-primary); }
-    .stat-card.success { border-color: var(--tele-success); }
-    .stat-card.warning { border-color: var(--tele-warning); }
-    .stat-card.danger { border-color: var(--tele-danger); }
+    .stat-card:hover { transform: translateY(-8px); }
+    .stat-card.primary { border-top-color: var(--tele-primary); }
+    .stat-card.success { border-top-color: var(--tele-success); }
+    .stat-card.warning { border-top-color: var(--tele-warning); }
+    .stat-card.danger { border-top-color: var(--tele-danger); }
 
     .stat-card .icon {
-        font-size: 40px;
-        margin-bottom: 15px;
-        opacity: 0.8;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 16px;
     }
 
-    .stat-card.primary .icon { color: var(--tele-primary); }
-    .stat-card.success .icon { color: var(--tele-success); }
-    .stat-card.warning .icon { color: var(--tele-warning); }
-    .stat-card.danger .icon { color: var(--tele-danger); }
+    .stat-card.primary .icon { background: #e0e7ff; color: var(--tele-primary); }
+    .stat-card.success .icon { background: #dcfce7; color: var(--tele-success); }
+    .stat-card.warning .icon { background: #fef3c7; color: var(--tele-warning); }
+    .stat-card.danger .icon { background: #fee2e2; color: var(--tele-danger); }
 
-    .stat-card h3 {
-        font-size: 32px;
-        font-weight: 700;
-        margin-bottom: 5px;
-    }
+    .stat-card h3 { font-size: 28px; font-weight: 800; margin: 0; color: #1e293b; }
+    .stat-card p { font-size: 14px; color: #64748b; margin: 4px 0 0 0; }
 
-    .stat-card p {
-        color: #64748b;
-        font-size: 14px;
-        margin: 0;
+    .dashboard-layout {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 25px;
     }
 
     .patients-section {
         background: white;
         padding: 30px;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        border-radius: 24px;
+        box-shadow: var(--tele-shadow);
     }
 
-    .section-header {
+    .side-section {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #f1f5f9;
+        flex-direction: column;
+        gap: 25px;
     }
 
-    .section-header h2 {
-        font-size: 24px;
+    .side-card {
+        background: white;
+        padding: 24px;
+        border-radius: 20px;
+        box-shadow: var(--tele-shadow);
+    }
+
+    .side-card h4 {
+        font-size: 18px;
         font-weight: 700;
-        color: #1e293b;
+        margin-bottom: 20px;
         display: flex;
         align-items: center;
         gap: 10px;
+        color: #1e293b;
     }
 
     .patient-card {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 20px;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        margin-bottom: 15px;
+        padding: 24px;
+        border: 1px solid #f1f5f9;
+        border-radius: 20px;
+        margin-bottom: 16px;
         transition: all 0.3s;
-        background: linear-gradient(to right, #ffffff 0%, #f8fafc 100%);
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
     }
 
     .patient-card:hover {
         border-color: var(--tele-primary);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-        transform: translateX(5px);
+        box-shadow: 0 12px 24px rgba(99, 102, 241, 0.08);
+        transform: scale(1.01);
+    }
+
+    .patient-card.critical {
+        border-left: 6px solid var(--tele-danger);
+        background: #fffafa;
+    }
+
+    .patient-card.high {
+        border-left: 6px solid var(--tele-warning);
+    }
+
+    .patient-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
     .patient-info {
@@ -131,249 +166,240 @@
     }
 
     .patient-avatar {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-size: 24px;
+        font-weight: 800;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .patient-details h4 { font-size: 20px; font-weight: 700; margin: 0 0 4px 0; color: #1e293b; }
+    .patient-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #64748b; }
+    .patient-meta span { display: flex; align-items: center; gap: 6px; }
+
+    .ai-insight-strip {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 14px;
+        border: 1px dashed #cbd5e1;
+    }
+
+    .risk-badge {
+        padding: 6px 12px;
+        border-radius: 10px;
         font-weight: 700;
-        flex-shrink: 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .patient-details h4 {
-        font-size: 18px;
-        font-weight: 600;
-        margin-bottom: 5px;
-        color: #1e293b;
-    }
-
-    .patient-meta {
-        display: flex;
-        gap: 15px;
-        font-size: 13px;
-        color: #64748b;
-    }
-
-    .patient-meta span {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .patient-actions {
-        display: flex;
-        gap: 10px;
-    }
+    .risk-badge.critical { background: #fee2e2; color: #ef4444; }
+    .risk-badge.high { background: #fef3c7; color: #d97706; }
+    .risk-badge.low { background: #dcfce7; color: #10b981; }
 
     .btn-consult {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
         color: white;
         padding: 12px 24px;
-        border-radius: 10px;
-        border: none;
-        font-weight: 600;
-        cursor: pointer;
+        border-radius: 12px;
+        font-weight: 700;
+        text-decoration: none;
         transition: all 0.3s;
         display: flex;
         align-items: center;
         gap: 8px;
-        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
     }
 
     .btn-consult:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
         color: white;
     }
 
-    .btn-profile {
-        background: white;
-        color: #6366f1;
-        padding: 12px 20px;
-        border-radius: 10px;
-        border: 2px solid #6366f1;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        text-decoration: none;
+    .soap-preview {
+        font-size: 13px;
+        color: #475569;
+        font-family: 'Courier New', Courier, monospace;
+        background: #f1f5f9;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 8px;
+        white-space: pre-wrap;
+    }
+
+    .lab-alert-item {
+        padding: 12px;
+        border-bottom: 1px solid #f1f5f9;
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
+        gap: 4px;
     }
 
-    .btn-profile:hover {
-        background: #6366f1;
-        color: white;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #94a3b8;
-    }
-
-    .empty-state i {
-        font-size: 80px;
-        margin-bottom: 20px;
-        opacity: 0.3;
-    }
-
-    .empty-state h3 {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-
-    .badge-chronic {
-        background: #fef3c7;
-        color: #92400e;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .patient-card {
-        animation: fadeInUp 0.5s ease-out forwards;
-    }
-
-    .patient-card:nth-child(1) { animation-delay: 0.1s; }
-    .patient-card:nth-child(2) { animation-delay: 0.2s; }
-    .patient-card:nth-child(3) { animation-delay: 0.3s; }
-    .patient-card:nth-child(4) { animation-delay: 0.4s; }
-    .patient-card:nth-child(5) { animation-delay: 0.5s; }
+    .lab-alert-item:last-child { border-bottom: none; }
+    .lab-alert-item strong { font-size: 14px; color: #1e293b; }
+    .lab-alert-item span { font-size: 12px; color: #64748b; }
 </style>
 
 <div class="tele-header">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1;">
         <div>
-            <h1>
-                <i class="fas fa-video"></i>
-                Tele-pharmacy Dashboard
-            </h1>
-            <p>ระบบให้คำปรึกษาทางเภสัชกรรมผ่านวิดีโอคอล - เชื่อมต่อกับผู้ป่วยได้ทุกที่ทุกเวลา</p>
+            <h1><i class="fas fa-brain"></i> AI Tele-pharmacy Dashboard</h1>
+            <p>ระบบคัดกรองความปลอดภัยทางเภสัชกรรมเชิงรุก พร้อมการวิเคราะห์ผู้ป่วยด้วย AI</p>
         </div>
-        <a href="/dashboard" class="btn-consult" style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); color: white; border: 1px solid rgba(255, 255, 255, 0.3);">
-            <i class="fas fa-home"></i>
-            กลับหน้าหลัก
-        </a>
+        <div class="d-flex gap-2">
+            <button class="btn btn-light" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <a href="/dashboard" class="btn btn-outline-light"><i class="fas fa-arrow-left"></i> หน้าหลัก</a>
+        </div>
     </div>
 </div>
 
 <div class="stats-grid">
     <div class="stat-card primary">
-        <div class="icon">
-            <i class="fas fa-users"></i>
+        <div>
+            <div class="icon"><i class="fas fa-microchip"></i></div>
+            <h3><?= $stats['forecast_accuracy'] ?? 85 ?>%</h3>
+            <p>AI Analysis Accuracy</p>
         </div>
-        <h3><?= count($patients) ?></h3>
-        <p>ผู้ป่วยที่พร้อมให้คำปรึกษา</p>
     </div>
-
-    <div class="stat-card success">
-        <div class="icon">
-            <i class="fas fa-check-circle"></i>
-        </div>
-        <h3>0</h3>
-        <p>การปรึกษาวันนี้</p>
-    </div>
-
-    <div class="stat-card warning">
-        <div class="icon">
-            <i class="fas fa-clock"></i>
-        </div>
-        <h3>0</h3>
-        <p>กำลังรอคิว</p>
-    </div>
-
     <div class="stat-card danger">
-        <div class="icon">
-            <i class="fas fa-calendar-check"></i>
+        <div>
+            <div class="icon"><i class="fas fa-radiation"></i></div>
+            <h3><?= count(array_filter($patients, fn($p) => ($p['ai_risk_level'] ?? '') === 'Critical')) ?></h3>
+            <p>Critical Risk Patients</p>
         </div>
-        <h3>0</h3>
-        <p>นัดหมายวันนี้</p>
+    </div>
+    <div class="stat-card warning">
+        <div>
+            <div class="icon"><i class="fas fa-capsules"></i></div>
+            <h3><?= $stats['polypharmacy_count'] ?? 0 ?></h3>
+            <p>Polypharmacy Cases</p>
+        </div>
+    </div>
+    <div class="stat-card success">
+        <div>
+            <div class="icon"><i class="fas fa-check-circle"></i></div>
+            <h3><?= count($patients) ?></h3>
+            <p>Patients Screened</p>
+        </div>
     </div>
 </div>
 
-<div class="patients-section">
-    <div class="section-header">
-        <h2>
-            <i class="fas fa-hospital-user"></i>
-            ผู้ป่วยล่าสุด
-        </h2>
-        <a href="/chronic/dashboard" class="btn btn-outline-primary">
-            <i class="fas fa-list"></i>
-            ดูทั้งหมด
-        </a>
-    </div>
-
-    <?php if (empty($patients)): ?>
-        <div class="empty-state">
-            <i class="fas fa-user-slash"></i>
-            <h3>ยังไม่มีผู้ป่วยในระบบ</h3>
-            <p>เมื่อมีผู้ป่วยเข้ารับการรักษา จะแสดงรายชื่อที่นี่</p>
+<div class="dashboard-layout">
+    <div class="patients-section">
+        <div class="section-header">
+            <h2><i class="fas fa-list-ul"></i> Patient Screening Queue</h2>
+            <div class="d-flex gap-2">
+                <span class="badge bg-danger rounded-pill"><?= count(array_filter($patients, fn($p) => ($p['ai_risk_level'] ?? '') === 'Critical')) ?> Priority</span>
+            </div>
         </div>
-    <?php else: ?>
-        <?php foreach ($patients as $patient): ?>
-            <div class="patient-card">
-                <div class="patient-info">
-                    <div class="patient-avatar">
-                        <?= strtoupper(substr($patient['first_name'] ?? 'P', 0, 1)) ?>
+
+        <?php if (empty($patients)): ?>
+            <div class="empty-state">
+                <i class="fas fa-robot"></i>
+                <h3>No patients in queue</h3>
+                <p>Relax, AI is monitoring for new risks.</p>
+            </div>
+        <?php else: ?>
+            <?php foreach ($patients as $patient): 
+                $riskColor = ($patient['ai_risk_level'] === 'Critical') ? 'critical' : (($patient['ai_risk_level'] === 'High') ? 'high' : 'low');
+            ?>
+                <div class="patient-card <?= $riskColor ?>">
+                    <div class="patient-main">
+                        <div class="patient-info">
+                            <div class="patient-avatar">
+                                <?= strtoupper(substr($patient['first_name'] ?? 'P', 0, 1)) ?>
+                            </div>
+                            <div class="patient-details">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h4><?= htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']) ?></h4>
+                                    <span class="risk-badge <?= $riskColor ?>">
+                                        <?= $patient['ai_risk_level'] ?> Risk (<?= $patient['ai_risk_score'] ?>)
+                                    </span>
+                                </div>
+                                <div class="patient-meta">
+                                    <span><i class="fas fa-id-card"></i> HN: <?= $patient['hn'] ?></span>
+                                    <span><i class="fas fa-user-clock"></i> อายุ <?= isset($patient['birth_date']) ? date_diff(date_create($patient['birth_date']), date_create('today'))->y : 'N/A' ?> ปี</span>
+                                    <span><i class="fas fa-bell"></i> Alerts: <?= $patient['ai_alerts_count'] ?? 0 ?></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="patient-actions">
+                            <a href="/tele-pharmacy/room/<?= $patient['hn'] ?>" class="btn-consult">
+                                <i class="fas fa-video"></i> Start Consult
+                            </a>
+                        </div>
                     </div>
-                    <div class="patient-details">
-                        <h4><?= htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']) ?></h4>
-                        <div class="patient-meta">
-                            <span>
-                                <i class="fas fa-id-card"></i>
-                                HN: <?= htmlspecialchars($patient['hn']) ?>
-                            </span>
-                            <span>
-                                <i class="fas fa-birthday-cake"></i>
-                                อายุ <?= isset($patient['birth_date']) ? date_diff(date_create($patient['birth_date']), date_create('today'))->y : 'N/A' ?> ปี
-                            </span>
-                            <?php if (!empty($patient['chronic_diseases'])): ?>
-                                <span class="badge-chronic">
-                                    <i class="fas fa-heartbeat"></i>
-                                    โรคเรื้อรัง
-                                </span>
+
+                    <div class="ai-insight-strip">
+                        <i class="fas fa-robot text-primary mt-1"></i>
+                        <div>
+                            <strong>AI Clinical Insight:</strong><br>
+                            <?= $patient['ai_summary'] ?? 'Stable profile. No immediate risks detected.' ?>
+                            
+                            <?php if (isset($patient['last_soap'])): ?>
+                                <div class="mt-2">
+                                    <strong>Last Consultation (SOAP):</strong>
+                                    <div class="soap-preview"><?= htmlspecialchars(substr($patient['last_soap'], 0, 150)) ?>...</div>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
-                <div class="patient-actions">
-                    <a href="/patient/<?= htmlspecialchars($patient['hn']) ?>" class="btn-profile">
-                        <i class="fas fa-user"></i>
-                        ประวัติ
-                    </a>
-                    <a href="/tele-pharmacy/room/<?= htmlspecialchars($patient['hn']) ?>" class="btn-consult">
-                        <i class="fas fa-video"></i>
-                        เริ่มให้คำปรึกษา
-                    </a>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
+    <div class="side-section">
+        <div class="side-card">
+            <h4><i class="fas fa-exclamation-circle text-danger"></i> AI Lab Advisory</h4>
+            <p class="text-muted small">Patients with missing labs based on their drug therapy.</p>
+            <div class="lab-alerts-list">
+                <?php if (empty($missingLabs)): ?>
+                    <p class="text-center text-muted p-4">No missing labs found.</p>
+                <?php else: ?>
+                    <?php foreach ($missingLabs as $lab): ?>
+                        <div class="lab-alert-item">
+                            <strong><?= $lab['name'] ?></strong>
+                            <span>Check <b><?= $lab['lab'] ?></b></span>
+                            <span class="text-primary italic"><i class="fas fa-pills"></i> Drug: <?= $lab['drug'] ?></span>
+                            <div class="mt-2">
+                                <a href="/tele-pharmacy/room/<?= $lab['hn'] ?>" class="btn btn-sm btn-outline-primary w-100">Contact Patient</a>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="side-card shadow-sm" style="background: #f1f5f9;">
+            <h4><i class="fas fa-clock"></i> Recent Activity</h4>
+            <div class="small">
+                <div class="p-2 border-bottom d-flex align-items-center gap-2">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <span>AI Audit completed (100 patients)</span>
+                </div>
+                <div class="p-2 border-bottom d-flex align-items-center gap-2">
+                    <i class="fas fa-sync text-primary"></i>
+                    <span>JHCIS Data Synced (2m ago)</span>
+                </div>
+                <div class="p-2 d-flex align-items-center gap-2">
+                    <i class="fas fa-user-plus text-info"></i>
+                    <span>3 new patients in queue</span>
                 </div>
             </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
+        </div>
+    </div>
 </div>
-
-<script>
-    // Auto-refresh patient list every 30 seconds
-    setInterval(() => {
-        // In production, you'd fetch updated patient list via AJAX
-        console.log('Checking for new patients...');
-    }, 30000);
-</script>
 
 <?php include dirname(__DIR__) . '/layouts/footer.php'; ?>

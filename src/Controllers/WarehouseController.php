@@ -263,4 +263,90 @@ class WarehouseController extends Controller
         header('Location: /warehouse');
         exit;
     }
+    /**
+     * Stock Balancing Dashboard (Track 1)
+     * AI Suggested Transfers from Main -> Sub Warehouses
+     */
+    public function stockBalancing()
+    {
+        $intelService = new \App\Services\IntelligenceService();
+        $suggestions = $intelService->getStockBalancingSuggestions();
+        
+        $this->view('warehouse/stock_balancing', ['suggestions' => $suggestions]);
+    }
+
+    /**
+     * Process Stock Balancing Transfers
+     */
+    public function processStockBalancing()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: /warehouse/balancing');
+            exit;
+        }
+
+        $items = $_POST['selected_transfers'] ?? [];
+        $transferCount = 0;
+
+        foreach ($items as $item) {
+            if (isset($item['checked']) && $item['checked'] == 1) {
+                
+                // Get oldest lot for FEFO (First Expire First Out) from Main Warehouse
+                // In a real scenario, we should let user select lot or auto-select
+                $lotInfo = $this->inventoryModel->getOldestLot('main', $item['drug_id']); // Assuming this method exists or similar logic
+
+                if ($lotInfo && $lotInfo['quantity'] >= $item['quantity']) {
+                    $transferData = [
+                        'from_warehouse' => 'main',
+                        'to_warehouse' => $item['subwarehouse_id'], // Assuming ID map or code
+                        'drug_id' => $item['drug_id'],
+                        'lot_no' => $lotInfo['lot_no'],
+                        'quantity' => $item['quantity'],
+                        'transferred_by' => $_SESSION['user_id'] ?? 1,
+                        'notes' => 'AI Stock Balancing: ' . $item['reason']
+                    ];
+                    
+                    if ($this->inventoryModel->createTransfer($transferData)) {
+                        $transferCount++;
+                    }
+                }
+            }
+        }
+
+        if ($transferCount > 0) {
+            $_SESSION['success'] = "Successfully processed {$transferCount} stock transfers.";
+        } else {
+            $_SESSION['warning'] = "No transfers processed. Please check stock availability.";
+        }
+        
+        header('Location: /warehouse/balancing');
+        exit;
+    }
+
+    /**
+    * API: Check FEFO Oldest Lot
+    * GET /api/warehouse/check-fefo?warehouse=main&drug_id=1
+    */
+    public function checkFEFO() 
+    {
+        header('Content-Type: application/json');
+        $warehouse = $_GET['warehouse'] ?? 'main';
+        $drugId = $_GET['drug_id'] ?? 0;
+
+        if (!$drugId) {
+            echo json_encode(['success' => false, 'message' => 'Missing drug_id']);
+            exit;
+        }
+
+        try {
+            $lot = $this->inventoryModel->getOldestLot($warehouse, $drugId);
+            echo json_encode([
+                'success' => true,
+                'dt' => $lot // 'dt' stands for Data/Details
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
 }

@@ -92,6 +92,133 @@ class NotificationController
     }
 
     /**
+     * Get all notifications for widget (API)
+     */
+    public function getNotifications()
+    {
+        header('Content-Type: application/json');
+        
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+
+        try {
+            $userId = $_SESSION['user_id'];
+            $unreadOnly = isset($_GET['unread_only']) && $_GET['unread_only'] === 'true';
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+            
+            // Use NotificationManager if available, fallback to model
+            if (class_exists('\App\Services\NotificationManager')) {
+                $manager = new \App\Services\NotificationManager();
+                $notifications = $manager->getUserNotifications($userId, $unreadOnly, $limit);
+                $unreadCount = $manager->getUnreadCount($userId);
+            } else {
+                $notifications = $this->notificationModel->getAll($userId, $limit);
+                $unreadCount = $this->notificationModel->countUnread($userId);
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'notifications' => $notifications,
+                'unread_count' => $unreadCount
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        
+        exit;
+    }
+
+    /**
+     * Mark single notification as read (API)
+     */
+    public function markNotificationAsRead($id)
+    {
+        header('Content-Type: application/json');
+        
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            exit;
+        }
+
+        try {
+            $userId = $_SESSION['user_id'];
+            
+            // Use NotificationManager if available
+            if (class_exists('\App\Services\NotificationManager')) {
+                $manager = new \App\Services\NotificationManager();
+                $result = $manager->markAsRead((int)$id, $userId);
+            } else {
+                $result = $this->notificationModel->markAsRead((int)$id);
+            }
+            
+            echo json_encode([
+                'success' => $result,
+                'message' => $result ? 'Marked as read' : 'Failed to mark as read'
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        
+        exit;
+    }
+
+    /**
+     * Mark all as read (API)
+     */
+    public function markAllNotificationsAsRead()
+    {
+        header('Content-Type: application/json');
+        
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            exit;
+        }
+
+        try {
+            $userId = $_SESSION['user_id'];
+            
+            // Use NotificationManager if available
+            if (class_exists('\App\Services\NotificationManager')) {
+                $manager = new \App\Services\NotificationManager();
+                $count = $manager->markAllAsRead($userId);
+            } else {
+                $count = $this->notificationModel->markAllAsRead($userId);
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => "Marked {$count} notifications as read",
+                'count' => $count
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        
+        exit;
+    }
+
+    /**
      * ทำเครื่องหมายว่าอ่านแล้ว (AJAX)
      */
     public function markRead()

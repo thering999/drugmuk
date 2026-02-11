@@ -1394,6 +1394,122 @@ class JHCISController {
     }
     
     /**
+     * GET /api/jhcis/mapping/drugs/{id}
+     * ดึงข้อมูล Drug Mapping ตาม ID
+     */
+    public function getMappingById($id) {
+        header('Content-Type: application/json');
+        
+        try {
+            $stmt = $this->db->prepare("
+                SELECT 
+                    m.id,
+                    m.jhcis_drug_code,
+                    m.drugmuk_drug_id,
+                    m.mapping_method as mapping_type,
+                    m.confidence_score,
+                    m.created_at as mapped_at,
+                    m.hospital_id,
+                    d.code as drug_code,
+                    d.name as drug_name
+                FROM jhcis_drug_mapping m
+                LEFT JOIN drugs d ON m.drugmuk_drug_id = d.id
+                WHERE m.id = ?
+            ");
+            $stmt->execute([$id]);
+            $mapping = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$mapping) {
+                http_response_code(404);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'ไม่พบข้อมูล Mapping'
+                ]);
+                return;
+            }
+            
+            // Add default values for fields that don't exist in DB
+            $mapping['notes'] = '';
+            $mapping['mapped_by'] = null;
+            
+            echo json_encode($mapping);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * PUT /api/jhcis/mapping/drugs/{id}
+     * อัปเดต Drug Mapping
+     */
+    public function updateDrugMapping($id) {
+        header('Content-Type: application/json');
+        
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $stmt = $this->db->prepare("
+                UPDATE jhcis_drug_mapping 
+                SET 
+                    jhcis_drug_code = ?,
+                    drugmuk_drug_id = ?,
+                    mapping_method = ?,
+                    confidence_score = ?
+                WHERE id = ?
+            ");
+            
+            // Determine confidence score based on mapping type
+            $mappingType = $input['mapping_type'] ?? 'manual';
+            $confidenceScore = 1.0;
+            if ($mappingType === 'exact') {
+                $confidenceScore = 1.0;
+            } elseif ($mappingType === 'equivalent') {
+                $confidenceScore = 0.9;
+            } else {
+                $confidenceScore = 0.8;
+            }
+            
+            $stmt->execute([
+                $input['jhcis_drug_code'] ?? '',
+                $input['drugmuk_drug_id'] ?? null,
+                $mappingType,
+                $confidenceScore,
+                $id
+            ]);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'อัปเดต Mapping สำเร็จ'
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * POST /api/jhcis/mapping/drugs/{id}
+     * Handle both UPDATE and DELETE based on _method parameter
+     */
+    public function updateOrDeleteMapping($id) {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $method = $input['_method'] ?? $_POST['_method'] ?? 'PUT';
+        
+        if (strtoupper($method) === 'DELETE') {
+            return $this->deleteDrugMapping($id);
+        } else {
+            return $this->updateDrugMapping($id);
+        }
+    }
+    
+    /**
      * DELETE /api/jhcis/mapping/drugs/{id}
      * ลบ Drug Mapping
      */

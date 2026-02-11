@@ -43,6 +43,35 @@ class LineNotificationService
     }
 
     /**
+     * Alias for sendPush (Compatibility)
+     */
+    public function sendPushMessage($to, $message)
+    {
+        return $this->sendPush($to, $message);
+    }
+    
+    /**
+     * Send Image Push Message
+     */
+    public function sendPushImage($to, $originalUrl, $previewUrl = null)
+    {
+        if (empty($this->accessToken)) return false;
+
+        $payload = [
+            'to' => $to,
+            'messages' => [
+                [
+                    'type' => 'image',
+                    'originalContentUrl' => $originalUrl,
+                    'previewImageUrl' => $previewUrl ?: $originalUrl
+                ]
+            ]
+        ];
+
+        return $this->executeRequest($this->apiUrl . '/push', $payload);
+    }
+
+    /**
      * Send a Flex Message (Advanced UI)
      */
     public function sendFlex($to, $altText, $contents)

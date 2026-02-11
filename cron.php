@@ -66,6 +66,12 @@ try {
     $forecastResults = $forecasting->runAllForecasts();
     echo "    - AI Forecasting: {$forecastResults['processed']} processed, {$forecastResults['errors']} errors.\n";
 
+    // 4.1 Intelligence Risk Recalculation
+    echo "\n[4.1] Recalculating Patient Risks...\n";
+    $intelligence = new \App\Services\IntelligenceService();
+    $riskCount = $intelligence->updatePatientRiskScores();
+    echo "    - Updated risk scores for {$riskCount} patients.\n";
+
     // 5. Automated Daily Backup
     echo "\n[5] Running Automated Backup...\n";
     $backup = new \App\Controllers\BackupController();

@@ -13,6 +13,10 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 }
 
 spl_autoload_register(function ($class) {
+    if (class_exists($class, false)) {
+        return;
+    }
+
     $prefix = 'App\\';
     $baseDir = __DIR__ . '/../src/';
     
@@ -25,7 +29,7 @@ spl_autoload_register(function ($class) {
     $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
 
     if (file_exists($file)) {
-        require $file;
+        require_once $file;
     }
 });
 
@@ -58,12 +62,12 @@ SessionSecurity::start();
 // SECURITY HEADERS
 // ========================================
 
-header('X-Frame-Options: DENY');
+header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('X-XSS-Protection: 1; mode=block');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-header('Permissions-Policy: geolocation=(), microphone=(), camera=(self), payment=(), usb=()');
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdn.jsdelivr.net cdnjs.cloudflare.com; font-src 'self' fonts.gstatic.com cdn.jsdelivr.net cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self';");
+header('Permissions-Policy: geolocation=(), microphone=(), camera=(self "https://meet.jit.si"), payment=(), usb=()');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com https://meet.jit.si; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdn.jsdelivr.net cdnjs.cloudflare.com; font-src 'self' fonts.gstatic.com cdn.jsdelivr.net cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://ai-chatbot-557496406519.us-west1.run.app https://meet.jit.si; frame-src 'self' https://ai-chatbot-557496406519.us-west1.run.app https://meet.jit.si https://*.run.app;");
 
 if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
@@ -87,6 +91,10 @@ $router->post('/authenticate', 'AuthController@authenticate'); // Alias for old 
 $router->get('/authenticate', 'AuthController@authenticate'); // Redirects to login
 $router->get('/logout', 'AuthController@logout');
 
+// User Profile
+$router->get('/profile', 'AuthController@profile');
+$router->post('/profile', 'AuthController@updateProfile');
+
 // HOME / DASHBOARD
 $router->get('/', 'DashboardController@index');
 $router->get('/dashboard', 'DashboardController@index');
@@ -94,6 +102,7 @@ $router->get('/dashboard', 'DashboardController@index');
 // INVENTORY ROUTES
 $router->get('/inventory', 'InventoryController@index');
 $router->get('/inventory/expiring', 'InventoryController@expiring');
+$router->get('/inventory/forecast', 'InventoryController@forecast'); // AI Forecast
 $router->get('/inventory/low-stock', 'InventoryController@lowStock');
 $router->post('/inventory/adjust/{id}', 'InventoryController@adjust');
 
@@ -108,6 +117,7 @@ $router->post('/dispensing/delete/{id}', 'DispensingController@delete');
 $router->get('/api/dispensing/search-patient', 'DispensingController@searchPatient');
 $router->get('/api/dispensing/patient-history/{hn}', 'DispensingController@patientHistory');
 $router->get('/dispensing/history/{hn}', 'DispensingController@history');
+$router->post('/api/dispensing/verify-qr', 'DispensingController@verifyQR'); // New QR Route
 
 // SUBWAREHOUSE ROUTES
 $router->get('/subwarehouse', 'SubWarehouseController@index');
@@ -129,10 +139,13 @@ $router->post('/api/subwarehouse/{code}/auto-requisition', 'SubWarehouseControll
 // ORDER ROUTES
 $router->get('/orders', 'OrderController@index');
 $router->get('/orders/create', 'OrderController@create');
+$router->get('/orders/auto-replenish', 'OrderController@autoReplenish'); // Smart Auto-Replenish
+$router->post('/orders/auto-replenish/store', 'OrderController@storeAutoPO');
 $router->get('/orders/what-to-buy', 'OrderController@whatToBuy');
 $router->get('/orders/show/{id}', 'OrderController@show');
 $router->post('/orders/store', 'OrderController@store');
 $router->post('/orders/approve/{id}', 'OrderController@updateStatus');
+$router->post('/orders/update-status/{id}', 'OrderController@updateStatus'); // Fix 404
 $router->get('/orders/receive/{id}', 'OrderController@receive');
 $router->post('/orders/receive', 'OrderController@storeReceive');
 $router->get('/orders/receive/print/{id}', 'OrderController@printReceive');
@@ -169,8 +182,11 @@ $router->get('/warehouse/stock-card', 'WarehouseController@stockCard');
 $router->get('/warehouse/stock-card/{id}', 'WarehouseController@stockCard');
 $router->get('/warehouse/adjust', 'WarehouseController@adjust');
 $router->post('/warehouse/store-adjustment', 'WarehouseController@storeAdjustment');
+$router->get('/warehouse/balancing', 'WarehouseController@stockBalancing'); // Cross-Warehouse
+$router->post('/warehouse/balancing/process', 'WarehouseController@processStockBalancing');
 $router->get('/warehouse/transfer', 'WarehouseController@transfer');
 $router->post('/warehouse/process-transfer', 'WarehouseController@processTransfer');
+$router->get('/api/warehouse/check-fefo', 'WarehouseController@checkFEFO'); // New FEFO API
 $router->get('/warehouse/create', 'WarehouseController@create');
 $router->post('/warehouse/store', 'WarehouseController@store');
 $router->get('/warehouse/edit/{id}', 'WarehouseController@edit');
@@ -183,6 +199,12 @@ $router->get('/dmsic/config', 'DMSICController@config');
 $router->post('/dmsic/config', 'DMSICController@config');
 $router->get('/dmsic/download/{id}', 'DMSICController@download');
 $router->post('/dmsic/api/send/{id}', 'DMSICController@send');
+
+// IMPORT HISTORY ROUTES
+$router->get('/import-history', 'ImportHistoryController@index');
+$router->get('/import-history/export', 'ImportHistoryController@export');
+$router->post('/import-history/delete', 'ImportHistoryController@delete');
+$router->post('/import-history/clear-old', 'ImportHistoryController@clearOld');
 
 // JHCIS DRUG LIST ROUTES
 $router->get('/jhcis-drugs', 'JHCISDrugListController@index');
@@ -231,6 +253,16 @@ $router->post('/api/notifications/test-telegram', 'NotificationController@testTe
 $router->get('/api/notifications/generate', 'NotificationController@generate');
 $router->get('/audit-trail', 'NotificationController@auditTrail');
 
+// New Notification Widget API Routes
+$router->get('/api/notifications', 'NotificationController@getNotifications');
+$router->post('/api/notifications/{id}/read', 'NotificationController@markNotificationAsRead');
+$router->post('/api/notifications/mark-all-read', 'NotificationController@markAllNotificationsAsRead');
+
+// ANALYTICS DASHBOARD
+$router->get('/analytics', 'AnalyticsController@index');
+$router->get('/api/analytics/dashboard', 'AnalyticsController@getDashboardData');
+$router->get('/api/analytics/export', 'AnalyticsController@exportReport');
+
 // EXPORT REPORTS
 $router->get('/export/quality-report', 'ExportController@qualityReport');
 $router->get('/export/audit-trail', 'ExportController@auditTrail');
@@ -263,6 +295,7 @@ $router->get('/sample-data', 'SampleDataController@index');
 $router->post('/api/insert-sample-data', 'SampleDataController@insert');
 $router->get('/mock-data', 'MockDataController@index');
 $router->post('/mock-data/generate', 'MockDataController@generate');
+$router->get('/seeder/seed', 'SeederController@seed');
 
 // SYSTEM SETTINGS
 $router->get('/settings/database', 'SystemSettingsController@index');
@@ -289,7 +322,8 @@ $router->get('/admin/jhcis/reports', 'JHCISEnhancedController@reportsPage');
 $router->get('/api/jhcis/mapping/stats', 'JHCISEnhancedController@getMappingStats');
 $router->get('/api/jhcis/mapping/drugs', 'JHCISEnhancedController@getDrugMappings');
 $router->post('/api/jhcis/mapping/drugs', 'JHCISEnhancedController@saveDrugMapping');
-$router->post('/api/jhcis/mapping/drugs/{id}', 'JHCISEnhancedController@deleteDrugMapping'); // For delete via _method
+$router->get('/api/jhcis/mapping/drugs/{id}', 'JHCISController@getMappingById'); // Get single mapping
+$router->post('/api/jhcis/mapping/drugs/{id}', 'JHCISController@updateOrDeleteMapping'); // Update or Delete
 $router->delete('/api/jhcis/mapping/drugs/{id}', 'JHCISEnhancedController@deleteDrugMapping');
 $router->get('/api/jhcis/unmapped-drugs', 'JHCISEnhancedController@getUnmappedDrugs');
 $router->post('/api/jhcis/mapping/auto-map', 'JHCISController@autoMapDrugs');
@@ -346,7 +380,11 @@ $router->get('/api/patient/{hn}/medications', 'PatientController@getCurrentMedic
 $router->get('/api/patient/{hn}/vitals', 'PatientController@getVitalSigns');
 $router->get('/api/patient/{hn}/vaccines', 'PatientController@getVaccines');
 $router->get('/api/patient/{hn}/screening', 'PatientController@getScreening');
+$router->get('/api/patient/{hn}/ai-insight', 'PatientController@getAIInsight');
 $router->post('/api/patient/{hn}/sync', 'PatientController@syncProfile');
+
+// PATIENT PORTAL (Mobile/LIFF - Track 2)
+$router->get('/patient/portal/{hn}', 'PatientController@portal'); // New Portal Route
 $router->get('/patient/search', 'PatientController@searchPage');
 $router->get('/patient/{hn}', 'PatientController@dashboard');
 
@@ -369,18 +407,52 @@ $router->get('/api/intelligence/rdu-analysis', 'IntelligenceController@getRDUAna
 $router->get('/api/intelligence/high-cost-analysis', 'IntelligenceController@getHighCostAnalysis');
 $router->get('/api/intelligence/polypharmacy', 'IntelligenceController@getPolypharmacy');
 $router->post('/api/intelligence/auto-adjust-inventory', 'IntelligenceController@autoAdjustInventory');
+$router->post('/api/intelligence/run-clinical-audit', 'IntelligenceController@runGlobalClinicalAudit');
 $router->get('/api/intelligence/jhcis-summary', 'IntelligenceController@getJHCISSummary');
 $router->get('/api/intelligence/cost-trend', 'IntelligenceController@getCostTrend');
 $router->post('/api/intelligence/send-alert', 'IntelligenceController@sendAlert');
+$router->get('/api/intelligence/budget-forecast', 'IntelligenceController@getBudgetForecast');
+$router->get('/api/intelligence/adherence-risk/{hn}', 'IntelligenceController@getAdherenceRisk');
+$router->get('/api/intelligence/dur-report', 'IntelligenceController@getDURReport');
+$router->post('/api/intelligence/tele-summary', 'IntelligenceController@getTeleSummary');
+$router->get('/api/intelligence/renal-dose-risk/{hn}', 'IntelligenceController@getRenalDoseSuggestions');
+$router->get('/api/intelligence/clinical-monitoring/{hn}', 'IntelligenceController@getClinicalMonitoring');
+$router->get('/api/intelligence/org-insights', 'IntelligenceController@getOrgInsights');
+$router->get('/api/intelligence/deprescribing/{hn}', 'IntelligenceController@getDeprescribing');
+$router->get('/api/intelligence/patient-insight/{hn}', 'IntelligenceController@getPatientInsight');
+$router->get('/api/intelligence/safety-monitoring', 'IntelligenceController@getSafetyMonitoring');
+$router->get('/api/intelligence/patient-safety-report/{hn}', 'IntelligenceController@getPatientSafetyReport');
+$router->get('/api/intelligence/interventions', 'IntelligenceController@getInterventions');
+$router->get('/api/intelligence/intervention-analytics', 'IntelligenceController@getInterventionAnalytics');
+$router->get('/api/intelligence/export-interventions', 'IntelligenceController@exportInterventions');
+$router->get('/api/intelligence/intervention-advice', 'IntelligenceController@getInterventionAdvice');
+$router->get('/api/intelligence/shortage-substitutions', 'IntelligenceController@getShortageSubstitutions');
+$router->get('/api/intelligence/medication-reconciliation/{hn}', 'IntelligenceController@getMedicationReconciliation');
+$router->get('/api/intelligence/clinical-burdens/{hn}', 'IntelligenceController@getClinicalBurdens');
+$router->get('/api/intelligence/thai-diet-advice/{hn}', 'IntelligenceController@getThaiDietAdvice');
+$router->post('/api/intelligence/check-interactions-batch', 'IntelligenceController@checkBatchInteractions');
+$router->get('/api/intelligence/clinical-review/{hn}', 'IntelligenceController@getAIClinicalReview');
+$router->post('/api/intelligence/ask', 'IntelligenceController@askAI');
+$router->get('/api/intelligence/shortage-priority/{id}', 'IntelligenceController@getShortagePriority');
+$router->get('/api/intelligence/ckd-progression/{hn}', 'IntelligenceController@getCKDProgression');
+$router->get('/api/intelligence/adherence-coaching/{hn}', 'IntelligenceController@getAdherenceCoaching');
+$router->get('/api/intelligence/optimization/{hn}', 'IntelligenceController@getPharmacotherapyOptimization');
+$router->post('/api/intelligence/scribe', 'IntelligenceController@generateScribe');
+$router->get('/api/intelligence/cost-optimization/{hn}', 'IntelligenceController@getCostOptimization');
 $router->get('/admin/intelligence/export-pdf', 'IntelligenceController@exportPDF');
 
 // PHASE 3: PATIENT ENGAGEMENT ROUTES
 $router->post('/api/engagement/send-reminder', 'EngagementController@sendReminder');
+$router->post('/api/engagement/send-portal-link', 'EngagementController@sendPortalLink'); // New API Route
 $router->post('/api/engagement/generate-instruction', 'EngagementController@generateInstruction');
 $router->post('/api/engagement/save-instruction', 'EngagementController@saveInstruction');
 $router->get('/api/engagement/adherence/{hn}', 'EngagementController@getAdherence');
+$router->get('/api/engagement/safety-report', 'EngagementController@getSafetyReport');
+$router->get('/api/engagement/ai-advice', 'EngagementController@getAIAdvice');
 $router->post('/api/engagement/record-adherence', 'EngagementController@recordAdherence');
+$router->post('/api/engagement/teleconsult/start', 'EngagementController@startTeleconsult'); // Tele-health
 $router->get('/patient/v/{token}', 'EngagementController@patientPortal'); // Patient-facing link
+$router->get('/engagement/dashboard', 'EngagementController@index'); // Pharmacist Dashboard
 
 // PHASE 4: CLINICAL SAFETY ROUTES
 $router->post('/api/safety/check-ddi', 'SafetyController@checkDDI');
@@ -406,6 +478,12 @@ $router->get('/tele-pharmacy/dashboard', 'TelepharmacyController@dashboard');
 $router->get('/tele-pharmacy/room', 'TelepharmacyController@room');
 $router->get('/tele-pharmacy/room/{hn}', 'TelepharmacyController@room');
 $router->post('/api/tele-pharmacy/save-notes', 'TelepharmacyController@saveSessionNotes');
+$router->post('/api/tele-pharmacy/analyze-note', 'TelepharmacyController@analyzeNote'); // New Route
+$router->post('/api/tele-pharmacy/invite', 'TelepharmacyController@sendInvite');
+$router->post('/api/tele-pharmacy/log-intervention', 'TelepharmacyController@logIntervention');
+
+// AI CHATBOT ROUTE
+$router->post('/ai/chat', 'AiController@handle');
 
 // RUN ROUTER
 $router->run();

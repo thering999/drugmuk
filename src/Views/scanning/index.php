@@ -367,7 +367,13 @@
                 updateUIState('scanning');
                 hideError();
             } catch (err) {
-                showError("Camera Error: " + err);
+                let msg = "Camera Error: " + err;
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    msg = "ไม่สามารถเข้าถึงกล้องได้ (Permission Denied)<br>โปรดตรวจสอบ:<br>1. อนุญาตสิทธิ์การใช้กล้องใน Browser<br>2. หากใช้บนมือถือ ต้องเข้าผ่าน HTTPS เท่านั้น (หรือ localhost)";
+                } else if (err.name === 'NotFoundError') {
+                    msg = "ไม่พบอุปกรณ์กล้อง";
+                }
+                showError(msg);
             }
         }
 

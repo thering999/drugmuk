@@ -26,8 +26,9 @@ class IntelligenceController extends Controller
     {
         header('Content-Type: application/json');
         try {
-            $forecast = $this->intelService->calculateDemandForecast($drugId);
-            echo json_encode(['success' => true, 'forecast' => $forecast]);
+            $model = $_GET['model'] ?? 'EMA'; // Default to EMA
+            $forecast = $this->intelService->calculateDemandForecast($drugId, $model);
+            echo json_encode(['success' => true, 'forecast' => $forecast, 'model' => $model]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -62,6 +63,22 @@ class IntelligenceController extends Controller
         try {
             $count = $this->intelService->updatePatientRiskScores();
             echo json_encode(['success' => true, 'updated_count' => $count]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/intervention-advice
+     */
+    public function getInterventionAdvice()
+    {
+        header('Content-Type: application/json');
+        try {
+            $type = $_GET['type'] ?? '';
+            $details = $_GET['details'] ?? '';
+            $advice = $this->intelService->getInterventionAdvice($type, $details);
+            echo json_encode(['success' => true, 'advice' => $advice]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -113,6 +130,7 @@ class IntelligenceController extends Controller
                 'recent_interactions' => $recentInteractions,
                 'predictive_shortages' => $predictiveShortages,
                 'extended' => $extendedStats,
+                'engagement_stats' => $this->intelService->getEngagementStats(),
                 'timestamp' => date('Y-m-d H:i:s')
             ], JSON_UNESCAPED_UNICODE);
         } catch (\Exception $e) {
@@ -163,6 +181,128 @@ class IntelligenceController extends Controller
     }
 
     /**
+     * GET /api/intelligence/budget-forecast
+     */
+    public function getBudgetForecast()
+    {
+        header('Content-Type: application/json');
+        try {
+            $forecast = $this->intelService->calculateBudgetForecast();
+            echo json_encode(['success' => true, 'forecast' => $forecast]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/adherence/{hn}
+     */
+    public function getAdherenceRisk($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $risk = $this->intelService->predictPatientAdherence($hn);
+            echo json_encode(['success' => true, 'adherence' => $risk]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/dur-report
+     */
+    public function getDURReport()
+    {
+        header('Content-Type: application/json');
+        try {
+            $report = $this->intelService->getDrugUtilizationReport();
+            echo json_encode(['success' => true, 'report' => $report]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /api/intelligence/tele-summary
+     */
+    public function getTeleSummary()
+    {
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents('php://input'), true);
+        $notes = $data['notes'] ?? '';
+        
+        try {
+            $summary = $this->intelService->summarizeTeleconsultation($notes);
+            echo json_encode(['success' => true, 'summary' => $summary]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * GET /api/intelligence/clinical-monitoring/{hn}
+     */
+    public function getClinicalMonitoring($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $recommendations = $this->intelService->getClinicalMonitoringAdvisor($hn);
+            echo json_encode(['success' => true, 'recommendations' => $recommendations]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * GET /api/intelligence/safety-monitoring
+     */
+    public function getSafetyMonitoring()
+    {
+        header('Content-Type: application/json');
+        try {
+            $list = $this->intelService->getSafetyMonitoringList();
+            echo json_encode(['success' => true, 'monitoring_list' => $list]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/patient-safety-report/{hn}
+     */
+    public function getPatientSafetyReport($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $report = $this->intelService->generatePatientSafetyReport($hn);
+            echo json_encode(['success' => true, 'report' => $report]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * GET /api/intelligence/patient-insight/{hn}
+     */
+    public function getPatientInsight($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $insight = $this->intelService->getPatientInsight($hn);
+            if (!$insight) {
+                echo json_encode(['success' => false, 'message' => 'Patient not found or no insight available']);
+                return;
+            }
+            echo json_encode(['success' => true, 'insight' => $insight], JSON_UNESCAPED_UNICODE);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Intelligence Dashboard View
      * GET /admin/intelligence
      */
@@ -180,6 +320,127 @@ class IntelligenceController extends Controller
         try {
             $updated = $this->intelService->autoAdjustInventoryPoints();
             echo json_encode(['success' => true, 'updated_count' => $updated]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /api/intelligence/run-clinical-audit
+     * Scans all active chronic patients for potential AI insights and risks
+     */
+    public function runGlobalClinicalAudit()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $hns = $db->query("SELECT DISTINCT hn FROM patient_chronic_diseases_cache LIMIT 100")->fetchAll(\PDO::FETCH_COLUMN);
+            
+            $results = [
+                'processed' => 0,
+                'high_risk_found' => 0,
+                'alerts_total' => 0
+            ];
+
+            // Ensure interventions table exists
+            $db->exec("CREATE TABLE IF NOT EXISTS clinical_interventions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                hn VARCHAR(50) NOT NULL,
+                staff_id INT NOT NULL,
+                intervention_type VARCHAR(100),
+                details TEXT,
+                severity VARCHAR(20),
+                status VARCHAR(20) DEFAULT 'Logged',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            foreach ($hns as $hn) {
+                $insight = $this->intelService->getPatientInsight($hn);
+                if ($insight) {
+                    $results['processed']++;
+                    if ($insight['score'] > 40) {
+                        $results['high_risk_found']++;
+                        
+                        // Check if we should log these as interventions
+                        foreach ($insight['alerts'] as $alert) {
+                            $stmt = $db->prepare("
+                                INSERT INTO clinical_interventions (hn, staff_id, intervention_type, details, severity, status, created_at)
+                                SELECT ?, 1, ?, ?, ?, 'Pending', NOW()
+                                WHERE NOT EXISTS (SELECT 1 FROM clinical_interventions WHERE hn = ? AND details = ? AND status = 'Pending')
+                            ");
+                            $severity = ($insight['score'] > 50 ? 'Major' : 'Moderate');
+                            $stmt->execute([$hn, $alert['title'], $alert['message'], $severity, $hn, $alert['message']]);
+
+                            // Send LINE Alert for Major findings during Audit
+                            if ($severity === 'Major') {
+                                $lineService = new \App\Services\LineNotificationService();
+                                $patientService = new \App\Services\PatientService();
+                                $p = $patientService->getPatientByHN($hn);
+                                $pName = $p ? ($p['first_name'] . ' ' . $p['last_name']) : $hn;
+                                $lineService->sendClinicalAlert($pName, $alert['title'], $alert['message']);
+                            }
+                        }
+                    }
+                    $results['alerts_total'] += count($insight['alerts']);
+                    
+                    if ($insight['score'] > 60) {
+                        $this->intelService->sendCriticalAlert('critical_risk', [
+                            'hn' => $hn,
+                            'score' => $insight['score'],
+                            'summary' => $insight['summary']
+                        ]);
+                    }
+                }
+            }
+            
+            echo json_encode(['success' => true, 'results' => $results]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/interventions
+     */
+    public function getInterventions()
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            
+            // Ensure table exists
+            $db->exec("CREATE TABLE IF NOT EXISTS clinical_interventions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                hn VARCHAR(50) NOT NULL,
+                staff_id INT NOT NULL,
+                intervention_type VARCHAR(100),
+                details TEXT,
+                severity VARCHAR(20),
+                status VARCHAR(20) DEFAULT 'Logged',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            $interventions = $db->query("
+                SELECT i.*, p.first_name, p.last_name 
+                FROM clinical_interventions i
+                LEFT JOIN patient_profiles p ON i.hn = p.hn
+                ORDER BY i.created_at DESC LIMIT 50
+            ")->fetchAll(\PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'interventions' => $interventions]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/intervention-analytics
+     */
+    public function getInterventionAnalytics()
+    {
+        header('Content-Type: application/json');
+        try {
+            $analytics = $this->intelService->getInterventionAnalytics();
+            echo json_encode(['success' => true, 'analytics' => $analytics]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -232,17 +493,51 @@ class IntelligenceController extends Controller
     }
 
     /**
+     * POST /api/intelligence/analyze-note
+     * Analyze clinical note text for ADR and Interactions
+     */
+    public function analyzeClinicalNote()
+    {
+        header('Content-Type: application/json');
+        try {
+            // Get raw POST data
+            $input = json_decode(file_get_contents('php://input'), true);
+            $text = $input['text'] ?? '';
+            $hn = $input['hn'] ?? null;
+            
+            if (empty($text)) {
+                throw new \Exception('Text content is required');
+            }
+            
+            $analysis = $this->intelService->analyzeClinicalNote($text, $hn);
+            echo json_encode(['success' => true, 'analysis' => $analysis]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * GET /api/intelligence/export-pdf
      */
     public function exportPDF()
     {
         // Generate PDF report data (HTML-based for now)
         try {
-            $stats = $this->intelService->getExtendedDashboardStats();
-            $riskStats = $this->intelService->getRiskStatistics();
-            $shortages = $this->intelService->getPredictiveShortages();
+            $response = [
+                'success' => true,
+                'timestamp' => date('Y-m-d H:i:s'),
+                'risk_stats' => $this->intelService->getRiskStatistics(),
+                'predictive_shortages' => $this->intelService->getPredictiveShortages(),
+                'extended' => $this->intelService->getExtendedDashboardStats(),
+                'engagement_stats' => $this->intelService->getEngagementStats()
+            ];
             
-            $html = $this->generatePDFHTML($stats, $riskStats, $shortages);
+            $stats = $response['extended'];
+            $riskStats = $response['risk_stats'];
+            $shortages = $response['predictive_shortages'];
+            // $engagementStats = $response['engagement_stats']; // If generatePDFHTML needs it, uncomment and pass it
+
+            $html = $this->generatePDFHTML($stats, $riskStats, $shortages); // Pass $engagementStats if generatePDFHTML is updated to accept it
             
             header('Content-Type: text/html; charset=utf-8');
             header('Content-Disposition: attachment; filename="intelligence_report_' . date('Y-m-d') . '.html"');
@@ -274,7 +569,7 @@ class IntelligenceController extends Controller
 
         $formattedInventoryValue = number_format($stats['total_inventory_value'], 2);
         
-        return <<<HTML
+        return <<<OUT
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -343,6 +638,284 @@ class IntelligenceController extends Controller
     </div>
 </body>
 </html>
-HTML;
+OUT;
+    }
+
+    /**
+     * GET /api/intelligence/export-interventions
+     */
+    public function exportInterventions()
+    {
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+
+            // Ensure table exists
+            $db->exec("CREATE TABLE IF NOT EXISTS clinical_interventions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                hn VARCHAR(50) NOT NULL,
+                staff_id INT NOT NULL,
+                intervention_type VARCHAR(100),
+                details TEXT,
+                severity VARCHAR(20),
+                status VARCHAR(20) DEFAULT 'Logged',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            $data = $db->query("
+                SELECT i.id, i.created_at, i.hn, p.first_name, p.last_name, 
+                       i.intervention_type, i.details, i.severity, i.status
+                FROM clinical_interventions i
+                LEFT JOIN patient_profiles p ON i.hn = p.hn
+                ORDER BY i.created_at DESC
+            ")->fetchAll(\PDO::FETCH_ASSOC);
+
+            $export = new \App\Services\ExcelExportService();
+            $export->setTitle('Clinical Interventions Report - Drugmuk')
+                   ->setFilename('clinical_interventions_' . date('Y-m-d') . '.xls')
+                   ->setHeaders([
+                       'ID', 'Date Time', 'HN', 'First Name', 'Last Name',
+                       'Type', 'Details', 'Severity', 'Status'
+                   ])
+                   ->setData($data)
+                   ->exportExcelHTML();
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+    /**
+     * GET /api/intelligence/shortage-substitutions
+     */
+    public function getShortageSubstitutions()
+    {
+        header('Content-Type: application/json');
+        try {
+            $substitutions = $this->intelService->getShortageSubstitutions();
+            echo json_encode(['success' => true, 'substitutions' => $substitutions]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/medication-reconciliation/{hn}
+     */
+    public function getMedicationReconciliation($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $reconciliation = $this->intelService->getMedicationReconciliation($hn);
+            echo json_encode(['success' => true, 'reconciliation' => $reconciliation]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/clinical-burdens/{hn}
+     */
+    public function getClinicalBurdens($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $burdens = $this->intelService->getClinicalBurdens($hn);
+            echo json_encode(['success' => true, 'burdens' => $burdens]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/thai-diet-advice/{hn}
+     */
+    public function getThaiDietAdvice($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $advice = $this->intelService->getThaiDietAdvice($hn);
+            echo json_encode(['success' => true, 'advice' => $advice]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /api/intelligence/check-interactions-batch
+     */
+    public function checkBatchInteractions()
+    {
+        header('Content-Type: application/json');
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $hn = $data['hn'] ?? '';
+            $drugIds = $data['drug_ids'] ?? [];
+            
+            $interactions = $this->intelService->checkBatchInteractions($hn, $drugIds);
+            echo json_encode(['success' => true, 'interactions' => $interactions]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/deprescribing/{hn}
+     */
+    public function getDeprescribing($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $suggestions = $this->intelService->getDeprescribing($hn);
+            echo json_encode(['success' => true, 'data' => $suggestions]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/renal-dose-risk/{hn}
+     */
+    public function getRenalDoseSuggestions($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $suggestions = $this->intelService->getRenalDoseSuggestions($hn);
+            echo json_encode(['success' => true, 'data' => $suggestions]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/org-insights
+     */
+    public function getOrgInsights()
+    {
+        header('Content-Type: application/json');
+        try {
+            $strategy = $this->intelService->getInventoryOptimizationStrategy();
+            echo json_encode(['success' => true, 'data' => $strategy]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+    /**
+     * GET /api/intelligence/clinical-review/{hn}
+     */
+    public function getAIClinicalReview($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $drugIds = $_GET['drug_ids'] ?? [];
+            if (is_string($drugIds)) $drugIds = explode(',', $drugIds);
+            
+            $review = $this->intelService->getAIClinicalReview($hn, $drugIds);
+            echo json_encode(['success' => true, 'data' => $review]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /api/intelligence/ask
+     */
+    public function askAI()
+    {
+        header('Content-Type: application/json');
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $query = $input['query'] ?? '';
+            $hn = $input['hn'] ?? null;
+            
+            $answer = $this->intelService->askClinicalAssistant($query, $hn);
+            echo json_encode(['success' => true, 'data' => $answer]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/shortage-priority/{drug_id}
+     */
+    public function getShortagePriority($drugId)
+    {
+        header('Content-Type: application/json');
+        try {
+            $priority = $this->intelService->getShortagePatientPrioritization($drugId);
+            echo json_encode(['success' => true, 'data' => $priority]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+    /**
+     * GET /api/intelligence/ckd-progression/{hn}
+     */
+    public function getCKDProgression($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $prediction = $this->intelService->predictCKDProgression($hn);
+            echo json_encode(['success' => true, 'data' => $prediction]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/adherence-coaching/{hn}
+     */
+    public function getAdherenceCoaching($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $coaching = $this->intelService->generateAdherenceCoaching($hn);
+            echo json_encode(['success' => true, 'data' => $coaching]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/optimization/{hn}
+     */
+    public function getPharmacotherapyOptimization($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $optimization = $this->intelService->getPharmacotherapyOptimization($hn);
+            echo json_encode(['success' => true, 'data' => $optimization]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+    /**
+     * POST /api/intelligence/scribe
+     */
+    public function generateScribe()
+    {
+        header('Content-Type: application/json');
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $hn = $input['hn'] ?? '';
+            $findings = $input['findings'] ?? [];
+            
+            $scribe = $this->intelService->generateClinicalScribe($hn, $findings);
+            echo json_encode(['success' => true, 'data' => $scribe]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/intelligence/cost-optimization/{hn}
+     */
+    public function getCostOptimization($hn)
+    {
+        header('Content-Type: application/json');
+        try {
+            $optimization = $this->intelService->getCostEffectivenessOptimization($hn);
+            echo json_encode(['success' => true, 'data' => $optimization]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 }

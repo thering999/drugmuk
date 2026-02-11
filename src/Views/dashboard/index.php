@@ -1,26 +1,11 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Drugmuk</title>
+<?php require_once __DIR__ . '/../layouts/header_responsive.php'; ?>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Sarabun', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
+        /* Dashboard specific styles */
+        .dashboard-container {
             max-width: 1400px;
             margin: 0 auto;
+            padding-bottom: 40px;
         }
 
         .header {
@@ -37,24 +22,46 @@
         .header h1 {
             color: #667eea;
             font-size: 28px;
+            margin: 0;
         }
 
+        /* Responsive Nav - Fix for Desktop */
         .nav {
             display: flex;
-            gap: 15px;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: flex-start; /* Align nav items to the start */
+            padding-bottom: 20px;
         }
 
         .nav a {
-            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 160px; /* Fixed width for consistent grid look */
+            height: 120px; /* Fixed height */
+            padding: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-decoration: none;
-            border-radius: 8px;
-            transition: transform 0.2s;
+            border-radius: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.4;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            flex: 0 0 auto; /* Don't grow or shrink unexpectedly */
+        }
+        
+        .nav a .nav-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
         }
 
         .nav a:hover {
-            transform: translateY(-2px);
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
         }
 
         .metrics {
@@ -193,27 +200,35 @@
             from { transform: translateY(-20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .user-info span {
-            color: #666;
-            font-size: 14px;
-        }
-        .btn-logout {
-            padding: 8px 16px;
-            background: #dc3545;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+                display: none; /* Hide old header on mobile since we have navbar */
+            }
+            
+            .nav {
+                grid-template-columns: repeat(3, 1fr); /* 3 cols on mobile */
+            }
+
+            .nav a {
+                height: 90px;
+                font-size: 11px;
+            }
+            
+            .nav a .nav-icon {
+                font-size: 24px;
+            }
+            
+            .recent-activity {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
-</head>
-<body>
-    <div class="container">
+
+    <div class="dashboard-container">
         <?php if (isset($_SESSION['success'])): ?>
         <div class="session-message success">
             ✅ <?= htmlspecialchars($_SESSION['success']) ?>
@@ -226,46 +241,130 @@
         </div>
         <?php unset($_SESSION['error']); endif; ?>
 
-        <div class="header">
-            <h1>🏥 ระบบบริหารคลังเวชภัณฑ์ยา Drugmuk</h1>
-            <div class="user-info">
-                <span>👤 <?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'N/A') ?>)</span>
-                <a href="/logout" class="btn-logout">🚪 ออกจากระบบ</a>
+        <!-- Welcome Header (Desktop Only) -->
+        <div class="header d-none d-md-flex" style="background: rgba(255,255,255,0.9); margin-bottom: 20px;">
+            <div>
+                <h1 style="font-size: 1.5rem; margin-bottom: 5px;">👋 ยินดีต้อนรับ, <?= htmlspecialchars($_SESSION['full_name'] ?? 'Guest') ?></h1>
+                <p style="color: #666; margin: 0;">ระบบบริหารคลังเวชภัณฑ์ Drugmuk (v3.6.0)</p>
+            </div>
+            <div style="text-align: right;">
+                <span class="badge bg-primary" style="padding: 8px 12px; border-radius: 20px; background: #667eea; color: white;">
+                    <?= htmlspecialchars($_SESSION['role'] ?? 'User') ?>
+                </span>
             </div>
         </div>
 
+        <!-- 🤖 AI Assistant Daily Briefing Widget -->
+        <div id="ai-assistant-briefing" style="display:none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding: 20px 30px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(118, 75, 162, 0.3); animation: slideIn 0.5s ease-out;">
+            <div style="display: flex; align-items: start; gap: 20px;">
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 30px;">
+                    🤖
+                </div>
+                <div style="flex-grow: 1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h2 style="margin:0; font-size:20px; color:white;" id="ai-brief-greeting">กำลังประมวลผล...</h2>
+                        <span style="background:rgba(255,255,255,0.2); px:10px; py:4px; border-radius:20px; font-size:12px; padding: 4px 12px;" id="ai-brief-date"></span>
+                    </div>
+                    <div style="font-size:16px; line-height:1.6; opacity:0.95;">
+                        <div id="ai-brief-status" style="font-weight:bold; margin-bottom:5px;"></div>
+                        <div id="ai-brief-details"></div>
+                        <div id="ai-brief-alert" style="margin-top:10px; background:rgba(255,255,255,0.15); padding:10px; border-radius:8px; display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchBriefing();
+        });
+
+        async function fetchBriefing() {
+            try {
+                const formData = new FormData();
+                formData.append('message', '__get_briefing__');
+                
+                // Get CSRF Token if available
+                const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                const headers = {};
+                if (csrfTokenMeta) {
+                    headers['X-CSRF-Token'] = csrfTokenMeta.getAttribute('content');
+                    headers['X-Requested-With'] = 'XMLHttpRequest';
+                }
+
+                const response = await fetch('/ai/chat', { // Assuming same endpoint
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.widget === 'daily_briefing') {
+                        renderBriefing(data.data);
+                    }
+                }
+            } catch (e) {
+                console.error("AI Briefing Error:", e);
+            }
+        }
+
+        function renderBriefing(data) {
+            const container = document.getElementById('ai-assistant-briefing');
+            document.getElementById('ai-brief-greeting').textContent = data.greeting;
+            document.getElementById('ai-brief-date').textContent = data.date;
+            document.getElementById('ai-brief-status').textContent = data.status;
+            document.getElementById('ai-brief-details').innerHTML = data.details;
+            
+            if (data.alert) {
+                const alertBox = document.getElementById('ai-brief-alert');
+                alertBox.innerHTML = data.alert;
+                alertBox.style.display = 'block';
+                // Add shake animation for alerts
+                if (data.low_stock_count > 0) {
+                     alertBox.style.border = '1px solid #fea5a5';
+                     alertBox.style.background = 'rgba(239, 68, 68, 0.2)';
+                }
+            }
+
+            container.style.display = 'block';
+        }
+        </script>
+
         <div class="header" style="margin-top: 20px;">
             <nav class="nav">
-                <a href="/dashboard">🏠 หน้าหลัก</a>
-                <a href="/purchasing">📊 แผนซื้อ</a>
-                <a href="/orders">🛒 สั่งซื้อ</a>
-                <a href="/warehouse">🏭 คลังใหญ่</a>
-                <a href="/subwarehouse">🏪 คลังย่อย</a>
-                <a href="/dispensing" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">💊 จ่ายยา</a>
-                <a href="/contracts">📄 สัญญา</a>
-                <a href="/admin/jhcis/dashboard" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">🔗 JHCIS Dashboard</a>
-                <a href="/admin/jhcis/hospitals" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">🏥 จัดการ รพ.สต.</a>
-                <a href="/admin/jhcis/mapping" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">💊 Drug Mapping</a>
-                <a href="/jhcis-import" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">⬇️ Import JHCIS</a>
-                <a href="/jhcis-drugs" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">📋 รายการยา JHCIS</a>
-                <a href="/import-history" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);">📊 ประวัติ Import</a>
-                <a href="/admin/intelligence" style="background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);">🧠 Intelligence Center</a>
+                <a href="/dashboard"><div class="nav-icon">🏠</div>หน้าหลัก</a>
+                <a href="/orders/auto-replenish" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 150px; flex-grow: 1; min-width: 150px;"><div class="nav-icon">✨🤖</div>Smart Auto-PO</a>
+                <a href="/purchasing"><div class="nav-icon">📊</div>แผนซื้อ</a>
+                <a href="/orders"><div class="nav-icon">🛒</div>สั่งซื้อ</a>
+                <a href="/warehouse"><div class="nav-icon">🏭</div>คลังใหญ่</a>
+                <a href="/subwarehouse"><div class="nav-icon">🏪</div>คลังย่อย</a>
+                <a href="/dispensing" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);"><div class="nav-icon">💊</div>จ่ายยา</a>
+                <a href="/contracts"><div class="nav-icon">📄</div>สัญญา</a>
+                <a href="/admin/jhcis/dashboard" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"><div class="nav-icon">🔗</div>JHCIS Dashboard</a>
+                <a href="/admin/jhcis/hospitals" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);"><div class="nav-icon">🏥</div>จัดการ รพ.สต.</a>
+                <a href="/admin/jhcis/mapping" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);"><div class="nav-icon">💊</div>Drug Mapping</a>
+                <a href="/jhcis-import" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);"><div class="nav-icon">⬇️</div>Import JHCIS</a>
+                <a href="/jhcis-drugs" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);"><div class="nav-icon">📋</div>รายการยา JHCIS</a>
+                <a href="/import-history" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);"><div class="nav-icon">📊</div>ประวัติ Import</a>
+                <a href="/admin/intelligence" style="background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);"><div class="nav-icon">🧠</div>Intelligence Center</a>
             </nav>
         </div>
 
         <!-- Phase 3 Advanced Features -->
         <div class="header" style="margin-top: 20px; background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);">
             <nav class="nav" style="flex-wrap: wrap;">
-                <a href="/scan" style="background: rgba(255,255,255,0.2);">📷 สแกนบาร์โค้ด</a>
-                <a href="/reports" style="background: rgba(255,255,255,0.2);">📊 รายงาน</a>
-                <a href="/dmsic" style="background: rgba(255,255,255,0.2);">🏥 DMSIC</a>
-                <a href="/data-cleansing" style="background: rgba(255,255,255,0.2);">🧹 Data Cleansing</a>
-                <a href="/realtime-sync" style="background: rgba(255,255,255,0.2);">⚡ Real-time Sync</a>
-                <a href="/notifications" style="background: rgba(255,255,255,0.2);">🔔 การแจ้งเตือน</a>
-                <a href="/audit-trail" style="background: rgba(255,255,255,0.2);">📜 Audit Trail</a>
-                <a href="/settings/database" style="background: rgba(255,255,255,0.4); border: 1px solid white;">⚙️ ตั้งค่าระบบ</a>
-                <a href="/updates" style="background: rgba(255,255,255,0.2);">🔄 อัพเดท</a>
-                <a href="/admin/jhcis/api-debug" style="background: rgba(255,255,255,0.2);">🔍 JHCIS API Debug</a>
+                <a href="/analytics" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); width: 150px; flex-grow: 1; min-width: 150px;"><div class="nav-icon">📊✨</div>Analytics Dashboard</a>
+                <a href="/scan" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">📷</div>สแกนบาร์โค้ด</a>
+                <a href="/reports" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">📊</div>รายงาน</a>
+                <a href="/dmsic" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">🏥</div>DMSIC</a>
+                <a href="/data-cleansing" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">🧹</div>Data Cleansing</a>
+                <a href="/realtime-sync" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">⚡</div>Real-time Sync</a>
+                <a href="/notifications" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">🔔</div>การแจ้งเตือน</a>
+                <a href="/audit-trail" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">📜</div>Audit Trail</a>
+                <a href="/settings/database" style="background: rgba(255,255,255,0.4); border: 1px solid white;"><div class="nav-icon">⚙️</div>ตั้งค่าระบบ</a>
+                <a href="/updates" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">🔄</div>อัพเดท</a>
+                <a href="/admin/jhcis/api-debug" style="background: rgba(255,255,255,0.2);"><div class="nav-icon">🔍</div>JHCIS API Debug</a>
             </nav>
         </div>
 
@@ -381,6 +480,10 @@
                 <?php endif; ?>
             </div>
         </div>
-    </div>
+        </div>
+    </div> <!-- End dashboard-container -->
+    
+    </main> <!-- End main container from header_responsive.php -->
+    
 </body>
 </html>

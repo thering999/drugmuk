@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Core\Database;
 use App\Services\NotificationService;
+use App\Services\PatientService;
 use PDO;
 
 /**
@@ -15,11 +17,13 @@ class EngagementService
 {
     private $db;
     private $notificationService;
+    private $patientService;
     
     public function __construct()
     {
         $this->db = Database::getInstance()->getConnection();
         $this->notificationService = new NotificationService();
+        $this->patientService = new PatientService();
     }
     
     /**
@@ -86,7 +90,12 @@ class EngagementService
      */
     public function getPatientInstructions($hn)
     {
-        $stmt = $this->db->prepare("SELECT * FROM patient_engagement_instructions WHERE hn = ?");
+        $stmt = $this->db->prepare("
+            SELECT i.*, d.image_url 
+            FROM patient_engagement_instructions i
+            LEFT JOIN drugs d ON i.drug_id = d.id
+            WHERE i.hn = ?
+        ");
         $stmt->execute([$hn]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -119,6 +128,120 @@ class EngagementService
         ";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$hn, $hn]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get Patients with Low Adherence (< 80%)
+     */
+    public function getLowAdherencePatients()
+    {
+        try {
+            // Find HN with adherence < 80% based on 'status' in logs
+            // Logic: Calculate % of 'took' vs total logs per patient
+            $sql = "
+                SELECT 
+                    a.hn, 
+                    COUNT(*) as total_logs,
+                    SUM(CASE WHEN a.status = 'taken' THEN 1 ELSE 0 END) as taken_count,
+                    (SUM(CASE WHEN a.status = 'taken' THEN 1 ELSE 0 END) / COUNT(*)) * 100 as score
+                FROM patient_adherence_logs a
+                WHERE a.taken_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY a.hn
+                HAVING score < 80
+                ORDER BY score ASC
+                LIMIT 20
+            ";
+            
+            $rows = $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Enrich with Patient Data
+            $results = [];
+            foreach ($rows as $row) {
+                // Try to get profile from Cache or JHCIS
+                $profile = $this->patientService->getCachedProfile($row['hn']);
+                if (!$profile) {
+                    $profile = $this->patientService->getPatientProfile($row['hn']);
+                }
+                
+                $row['full_name'] = $profile['pname'] . $profile['fname'] . ' ' . $profile['lname'] ?? 'Unknown';
+                
+                // Get current meds (Mock or Real)
+                // For demo speed, use string if available, else generic
+                $row['medications'] = 'Multiple Medications'; 
+                
+                $results[] = $row;
+            }
+            
+            return $results;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get Total Active Patients in Monitoring
+     */
+    public function getActiveMonitoringStats()
+    {
+        try {
+             $total = $this->db->query("SELECT COUNT(DISTINCT hn) FROM patient_adherence_logs WHERE taken_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn();
+             $sentToday = $this->db->query("SELECT COUNT(*) FROM patient_notifications WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+             
+             return [
+                 'active_patients' => $total ?: 0,
+                 'reminders_today' => $sentToday ?: 0
+             ];
+        } catch (\Exception $e) { return ['active_patients' => 0, 'reminders_today' => 0]; }
+    }
+    /**
+     * Generate Secure Access Link for Patient Portal
+     * Token Format: base64(hn|timestamp|signature)
+     */
+    public function generateAccessLink($hn)
+    {
+        $expiry = time() + (24 * 60 * 60); // 24 hours
+        $secret = \App\Core\Config::get('LINE_CHANNEL_SECRET') ?? 'secure_secret_salt_123';
+        $signature = hash_hmac('sha256', "$hn|$expiry", $secret);
+        
+        $tokenPayload = "$hn|$expiry|$signature";
+        $token = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($tokenPayload)); // URL Safe Base64
+        
+        return \App\Core\Config::get('APP_URL') . "/patient/v/$token";
+    }
+
+    /**
+     * Verify Access Token
+     * Returns HN if valid, null if invalid or expired
+     */
+    public function verifyAccessToken($token)
+    {
+        $secret = \App\Core\Config::get('LINE_CHANNEL_SECRET') ?? 'secure_secret_salt_123';
+        $token = str_replace(['-', '_'], ['+', '/'], $token);
+        $decoded = base64_decode($token);
+        
+        if (!$decoded) return null;
+        
+        $parts = explode('|', $decoded);
+        if (count($parts) !== 3) return null;
+        
+        list($hn, $expiry, $signature) = $parts;
+        
+        // 1. Check timestamp
+        if (time() > $expiry) return null;
+        
+        // 2. Check signature
+        $expectedSignature = hash_hmac('sha256', "$hn|$expiry", $secret);
+        if (!hash_equals($expectedSignature, $signature)) return null;
+        
+        return $hn;
+    /**
+     * Get Telehealth Consultation History
+     */
+    public function getTelehealthHistory($hn)
+    {
+        $stmt = $this->db->prepare("SELECT * FROM patient_telehealth_logs WHERE hn = ? ORDER BY consult_date DESC LIMIT 5");
+        $stmt->execute([$hn]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
