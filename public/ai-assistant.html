@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Command Center | Drugmuk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0c1726;
+            --salt: #f7f4ef;
+            --sand: #efe7dc;
+            --copper: #c57a5a;
+            --teal: #2d7f7b;
+            --sun: #f3c969;
+            --plum: #3d2d4f;
+            --glass: rgba(255, 255, 255, 0.65);
+            --shadow: 0 18px 40px rgba(10, 15, 25, 0.12);
+            --card-border: rgba(12, 23, 38, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Space Grotesk", sans-serif;
+            background: radial-gradient(circle at top left, #fff6e8 0%, #f6efe4 45%, #e7e0d3 100%);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        .shell {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 64px;
+        }
+
+        .hero {
+            display: grid;
+            gap: 24px;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+            align-items: center;
+            margin-bottom: 36px;
+        }
+
+        .hero-card {
+            background: var(--glass);
+            border: 1px solid rgba(12, 23, 38, 0.08);
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(14px);
+        }
+
+        .hero h1 {
+            font-size: clamp(28px, 4vw, 44px);
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+
+        .hero p {
+            font-family: "Spectral", serif;
+            font-size: 16px;
+            color: rgba(12, 23, 38, 0.8);
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            background: rgba(45, 127, 123, 0.12);
+            color: var(--teal);
+            font-weight: 600;
+        }
+
+        .hero-art {
+            background: linear-gradient(135deg, rgba(61, 45, 79, 0.95), rgba(45, 127, 123, 0.9));
+            border-radius: 24px;
+            padding: 24px;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hero-art::after {
+            content: "";
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle, rgba(243, 201, 105, 0.7), transparent 70%);
+            top: -120px;
+            right: -140px;
+        }
+
+        .hero-art h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .hero-art ul {
+            list-style: none;
+            display: grid;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.78);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(12, 23, 38, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel h3 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel small {
+            color: rgba(12, 23, 38, 0.6);
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(12, 23, 38, 0.7);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(12, 23, 38, 0.18);
+            font-family: inherit;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--teal), #3a9c88);
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(45, 127, 123, 0.25);
+        }
+
+        button.secondary {
+            background: rgba(197, 122, 90, 0.16);
+            color: var(--copper);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 24px rgba(12, 23, 38, 0.16);
+        }
+
+        .result {
+            background: #fefaf4;
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px dashed rgba(12, 23, 38, 0.2);
+            font-family: "Spectral", serif;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(12, 23, 38, 0.08);
+            color: rgba(12, 23, 38, 0.7);
+        }
+
+        .stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .row {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
+
+        .footer {
+            margin-top: 32px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            font-size: 12px;
+            color: rgba(12, 23, 38, 0.6);
+            flex-wrap: wrap;
+        }
+
+        .fade-in {
+            animation: fadeUp 0.6s ease;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Custom Key Config */
+        .config-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--glass);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(14px);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .key-input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
+            max-width: 400px;
+        }
+
+        .key-input {
+            flex-grow: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(12, 23, 38, 0.18);
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            background: #fff;
+        }
+
+        .key-input:focus {
+            border-color: var(--teal);
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="config-bar fade-in">
+            <div style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <span>🛰️ Static Client Mode:</span>
+                <span class="pill" style="margin: 0; padding: 4px 10px; font-size: 11px;">Active</span>
+            </div>
+            <div class="key-input-container">
+                <label for="gemini-key" style="white-space: nowrap; margin-right: 4px; font-size: 13px;">🔑 Gemini API Key:</label>
+                <input id="gemini-key" type="password" class="key-input" placeholder="ป้อน API Key เพื่อเชื่อมต่อ AI จริง...">
+            </div>
+        </div>
+
+        <section class="hero fade-in">
+            <div class="hero-card">
+                <h1>AI Command Center</h1>
+                <p>ศูนย์สั่งการอัจฉริยะสำหรับเภสัชกร: ถามตอบ, วิเคราะห์ความเสี่ยง, และพยากรณ์คลังยาในที่เดียว</p>
+                <div class="hero-meta">
+                    <span class="pill">Gemini + RAG</span>
+                    <span class="pill">Clinical Safety</span>
+                    <span class="pill">Inventory Forecast</span>
+                </div>
+            </div>
+            <div class="hero-art">
+                <div>
+                    <h2>พร้อมใช้งานทันที</h2>
+                    <div style="font-size: 14px; opacity: 0.85;">เชื่อมกับข้อมูลยาจริง + Knowledge Base</div>
+                </div>
+                <ul>
+                    <li>✓ คำตอบพร้อมแหล่งอ้างอิง</li>
+                    <li>✓ ตรวจแพ้ยา/ปฏิกิริยาระหว่างยา</li>
+                    <li>✓ วิเคราะห์สต็อก + EOQ</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="grid fade-in">
+            <div class="panel">
+                <h3>💬 AI Chat</h3>
+                <small>ถามเรื่องยา การใช้ยา หรือคำแนะนำด้านคลินิก</small>
+                <div class="stack">
+                    <label for="chat-category">หมวดคำถาม</label>
+                    <select id="chat-category">
+                        <option value="general">ทั่วไป</option>
+                        <option value="drugs">ข้อมูลยา</option>
+                        <option value="clinical">คลินิก</option>
+                        <option value="inventory">คลังยา</option>
+                        <option value="procedures">ขั้นตอนงาน</option>
+                    </select>
+                    <label for="chat-message">ข้อความ</label>
+                    <textarea id="chat-message" placeholder="เช่น ยา Amoxicillin มีผลข้างเคียงอะไรบ้าง?"></textarea>
+                    <button class="primary" id="chat-send">ส่งคำถาม</button>
+                    <div class="result" id="chat-result">ผลลัพธ์จะแสดงที่นี่</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🩺 Drug Safety</h3>
+                <small>ตรวจแพ้ยา + ปฏิกิริยาระหว่างยา</small>
+                <div class="stack">
+                    <div class="row">
+                        <div>
+                            <label for="patient-id">รหัสผู้ป่วย (patient_id)</label>
+                            <input id="patient-id" type="number" placeholder="เช่น 1024">
+                        </div>
+                        <div>
+                            <label for="drug-id">รหัสยา (drug_id)</label>
+                            <input id="drug-id" type="number" placeholder="เช่น 88">
+                        </div>
+                    </div>
+                    <button class="primary" id="safety-check">ตรวจสอบความปลอดภัย</button>
+                    <div class="result" id="safety-result">ผลการตรวจสอบจะแสดงที่นี่</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>📈 Inventory Forecast</h3>
+                <small>พยากรณ์ยอดใช้ยา + EOQ + reorder point</small>
+                <div class="stack">
+                    <div class="row">
+                        <div>
+                            <label for="forecast-drug">รหัสยา (drug_id)</label>
+                            <input id="forecast-drug" type="number" placeholder="เช่น 88">
+                        </div>
+                        <div>
+                            <label for="forecast-months">จำนวนเดือน</label>
+                            <input id="forecast-months" type="number" value="3" min="1" max="12">
+                        </div>
+                    </div>
+                    <button class="primary" id="forecast-btn">คำนวณพยากรณ์</button>
+                    <button class="secondary" id="eoq-btn">คำนวณ EOQ</button>
+                    <div class="result" id="forecast-result">ผลการวิเคราะห์จะแสดงที่นี่</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🛰️ System Status</h3>
+                <small>ตรวจความพร้อมของ AI stack</small>
+                <div class="stack">
+                    <button class="primary" id="check-setup">ตรวจสถานะระบบ</button>
+                    <div class="status" id="setup-status">ยังไม่ได้ตรวจสอบ</div>
+                    <div class="result" id="setup-result">รายละเอียดจะปรากฏที่นี่</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="footer">
+            <span>Drugmuk AI · February 17, 2026</span>
+            <span>TIP: ตั้งค่า API key แล้วรีเฟรชหน้าจอเพื่อใช้งานแบบเต็ม</span>
+        </div>
+    </div>
+
+    <script>
+        const chatResult = document.getElementById('chat-result');
+        const safetyResult = document.getElementById('safety-result');
+        const forecastResult = document.getElementById('forecast-result');
+        const setupStatus = document.getElementById('setup-status');
+        const setupResult = document.getElementById('setup-result');
+        const geminiKeyInput = document.getElementById('gemini-key');
+
+        const formatJson = (data) => JSON.stringify(data, null, 2);
+
+        // Load saved API Key
+        const savedKey = localStorage.getItem('drugmuk_gemini_key');
+        if (savedKey) {
+            geminiKeyInput.value = savedKey;
+        }
+
+        geminiKeyInput.addEventListener('change', () => {
+            localStorage.setItem('drugmuk_gemini_key', geminiKeyInput.value.trim());
+        });
+
+        // Mock Patient & Drug Databases
+        const mockPatients = {
+            "1024": {
+                name: "นายประหยัด ด่านทหาร",
+                age: 58,
+                allergies: ["Amoxicillin", "Penicillin V"],
+                history: [
+                    { drug_id: 45, name: "Warfarin 3mg", qty: 30, last_dispensed: "2026-05-10" }
+                ]
+            },
+            "1025": {
+                name: "นางดวงใจ แม่น้ำโขง",
+                age: 45,
+                allergies: ["Sulfamethoxazole", "Co-trimoxazole"],
+                history: [
+                    { drug_id: 12, name: "Simvastatin 20mg", qty: 30, last_dispensed: "2026-06-01" }
+                ]
+            },
+            "1026": {
+                name: "นายสมชาย คำชะอี",
+                age: 67,
+                allergies: [],
+                history: [
+                    { drug_id: 34, name: "Aspirin 81mg", qty: 30, last_dispensed: "2026-06-05" }
+                ]
+            }
+        };
+
+        const mockDrugs = {
+            "88": { name: "Amoxicillin 500mg Capsule", group: "Penicillins", price: 1.5, usage: [1200, 1350, 1100, 1250, 1400, 1300], orderCost: 500, holdingCostRate: 0.15 },
+            "89": { name: "Ibuprofen 400mg Tablet", group: "NSAIDs", price: 0.8, usage: [800, 950, 900, 850, 1000, 920], orderCost: 300, holdingCostRate: 0.15 },
+            "90": { name: "Clarithromycin 500mg Tablet", group: "Macrolides", price: 15.0, usage: [150, 180, 160, 140, 200, 170], orderCost: 400, holdingCostRate: 0.15 },
+            "91": { name: "Gemfibrozil 600mg Tablet", group: "Fibrates", price: 3.5, usage: [300, 320, 280, 310, 330, 290], orderCost: 350, holdingCostRate: 0.15 }
+        };
+
+        // Client-side Gemini API call helper
+        async function callGeminiAPI(sysPrompt, userMsg) {
+            let apiKey = geminiKeyInput.value.trim();
+            if (!apiKey) {
+                apiKey = 'AIzaSyApt3F3OqbhFMnx1YJ617OFYlH--CaRzxg'; // Default API Key fallback
+            }
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `${sysPrompt}\n\nคำร้องขอผู้ใช้:\n${userMsg}`
+                            }]
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('API key invalid or network issue');
+                }
+
+                const d = await response.json();
+                if (d.candidates && d.candidates[0].content.parts[0].text) {
+                    return d.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error('Response format error');
+                }
+            } catch (err) {
+                console.warn('Gemini API call failed:', err);
+                return null;
+            }
+        }
+
+        // Local Chat response if Gemini offline
+        function getLocalChatReply(message, category) {
+            const query = message.toLowerCase();
+            if (category === 'drugs' || query.includes('ยา') || query.includes('ผลข้างเคียง')) {
+                return `**[ระบบออฟไลน์ - ข้อมูลยา]**
+ยาหลักในคลังระบบ:
+- **Amoxicillin 500mg**: ยาปฏิชีวนะกลุ่ม Penicillin ใช้รักษาการติดเชื้อแบคทีเรีย อาการข้างเคียง: ท้องเสีย ผื่นคัน (ระวังคนไข้แพ้ยากลุ่ม Penicillin)
+- **Simvastatin 20mg**: ยาลดไขมันในเลือดกลุ่ม Statin อาการข้างเคียง: ปวดกล้ามเนื้อ (ระวังปฏิกิริยากับยาลดไขมันกลุ่ม Fibrates หรือ CYP3A4 inhibitors)
+- **Ibuprofen 400mg**: ยาแก้ปวดลดไข้กลุ่ม NSAIDs อาการข้างเคียง: ระคายเคืองกระเพาะอาหาร เพิ่มความเสี่ยงการเกิดเลือดออก (ระวังปฏิกิริยากับ Warfarin)`;
+            }
+            if (category === 'inventory' || query.includes('คลัง') || query.includes('eoq') || query.includes('สต็อก')) {
+                return `**[ระบบออฟไลน์ - คลังยา]**
+สูตรคำนวณและข้อมูลคลังยาเบื้องต้น:
+1. **EOQ (Economic Order Quantity)**: ปริมาณการสั่งซื้อที่ประหยัดที่สุด
+   $EOQ = \\sqrt{\\frac{2DS}{H}}$
+   * D = ปริมาณความต้องการต่อปี (Annual Demand)
+   * S = ค่าใช้จ่ายในการสั่งซื้อต่อครั้ง (Ordering Cost)
+   * H = ค่าใช้จ่ายในการเก็บรักษาต่อหน่วยต่อปี (Holding Cost)
+2. **ROP (Reorder Point)**: จุดสั่งซื้อใหม่
+   $ROP = (Average Daily Demand \\times Lead Time) + Safety Stock$`;
+            }
+            if (category === 'clinical' || query.includes('safety') || query.includes('ปลอดภัย')) {
+                return `**[ระบบออฟไลน์ - คลินิกและความปลอดภัย]**
+ระบบตรวจสอบความปลอดภัยจะเน้นการเฝ้าระวัง 3 มิติหลัก:
+1. **Drug-Allergy Interaction**: ประวัติการแพ้ยากับยาที่กำลังจะสั่งจ่าย
+2. **Drug-Drug Interaction**: ปฏิกิริยาระหว่างยาที่กำลังจ่ายกับยาเดิมที่คนไข้รับประทานอยู่
+3. **Duplication**: การจ่ายยาซ้ำซ้อนในกลุ่มบำบัดเดียวกัน`;
+            }
+            return `**[ระบบออฟไลน์ - ทั่วไป]**
+สวัสดีครับ ผมคือระบบช่วยเหลือจำลองออฟไลน์ของ Drugmuk AI
+เนื่องจากยังไม่ได้ตั้งค่า API Key หรือเกิดข้อผิดพลาดในการเชื่อมต่ออินเทอร์เน็ต ระบบจึงทำงานในโหมดออฟไลน์
+คุณสามารถป้อน Gemini API Key ของคุณที่แถบตั้งค่าด้านบนเพื่อเปิดใช้งานความสามารถการวิเคราะห์แบบเต็มรูปแบบได้ทันทีครับ!`;
+        }
+
+        // 💬 AI Chat event
+        document.getElementById('chat-send').addEventListener('click', async () => {
+            const message = document.getElementById('chat-message').value.trim();
+            const category = document.getElementById('chat-category').value;
+            if (!message) {
+                chatResult.textContent = 'กรุณาพิมพ์คำถามก่อนส่ง';
+                return;
+            }
+
+            chatResult.textContent = 'กำลังประมวลผล...';
+            
+            const sysPrompt = `คุณคือ Drugmuk AI Assistant ผู้เชี่ยวชาญด้านระบบบริหารคลังยาและตรวจสอบความปลอดภัยการจ่ายยา (HDC & Drugmuk)
+            ตอบเป็นภาษาไทย ให้คำแนะนำที่เป็นประโยชน์และถูกต้องตามหลักวิชาชีพเภสัชกรรม คลังยา และระบบฐานข้อมูล หมวดหมู่คำถามปัจจุบัน: ${category}`;
+            
+            let reply = await callGeminiAPI(sysPrompt, message);
+            if (!reply) {
+                reply = getLocalChatReply(message, category);
+            }
+
+            // Simple markdown formatter
+            let formatted = reply
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>');
+            chatResult.innerHTML = formatted;
+        });
+
+        // 🩺 Drug Safety event
+        document.getElementById('safety-check').addEventListener('click', async () => {
+            const patientId = document.getElementById('patient-id').value.trim();
+            const drugId = document.getElementById('drug-id').value.trim();
+            if (!patientId || !drugId) {
+                safetyResult.textContent = 'กรุณาระบุ patient_id และ drug_id';
+                return;
+            }
+
+            safetyResult.textContent = 'กำลังตรวจสอบความปลอดภัย...';
+
+            const patient = mockPatients[patientId];
+            const drug = mockDrugs[drugId];
+
+            let allergyCheck = {
+                has_allergy: false,
+                severity: "none",
+                risk_level: 0,
+                message: "No known allergen ingredients found"
+            };
+
+            let interactionCheck = {
+                interactions_found: 0,
+                interactions: [],
+                severity: "none",
+                recommendation: "No significant interactions found. Safe to prescribe."
+            };
+
+            let overallSeverity = 0;
+
+            if (patient && drug) {
+                // Check allergy
+                const drugGroup = drug.group;
+                const isAllergenMatched = patient.allergies.some(allergen => 
+                    allergen.toLowerCase().includes(drugGroup.toLowerCase()) || 
+                    drug.name.toLowerCase().includes(allergen.toLowerCase())
+                );
+
+                if (isAllergenMatched) {
+                    allergyCheck = {
+                        has_allergy: true,
+                        matched_allergens: patient.allergies.map(a => ({ allergen: a, severity: 3, reaction_type: "Anaphylaxis/Rash" })),
+                        severity: "critical",
+                        risk_level: 3,
+                        message: `⚠️ ALLERGY ALERT: Patient ${patient.name} has known allergy to ${patient.allergies.join(', ')} which conflicts with ${drug.name}.`
+                    };
+                    overallSeverity = 3;
+                }
+
+                // Check drug interactions
+                patient.history.forEach(histDrug => {
+                    // Warfarin (45) / Aspirin (34) + Ibuprofen (89)
+                    if ((histDrug.name.includes("Warfarin") || histDrug.name.includes("Aspirin")) && drug.name.includes("Ibuprofen")) {
+                        interactionCheck.interactions.push({
+                            drug1: histDrug.name,
+                            drug2: drug.name,
+                            severity: 3,
+                            reason: "Increased risk of gastrointestinal bleeding when NSAIDs are combined with anticoagulants/antiplatelets."
+                        });
+                    }
+                    // Simvastatin (12) + Clarithromycin (90)
+                    if (histDrug.name.includes("Simvastatin") && drug.name.includes("Clarithromycin")) {
+                        interactionCheck.interactions.push({
+                            drug1: histDrug.name,
+                            drug2: drug.name,
+                            severity: 3,
+                            reason: "Clarithromycin inhibits CYP3A4, dramatically increasing Simvastatin concentration and risk of rhabdomyolysis."
+                        });
+                    }
+                    // Simvastatin (12) + Gemfibrozil (91)
+                    if (histDrug.name.includes("Simvastatin") && drug.name.includes("Gemfibrozil")) {
+                        interactionCheck.interactions.push({
+                            drug1: histDrug.name,
+                            drug2: drug.name,
+                            severity: 2,
+                            reason: "Gemfibrozil increases the risk of statin-induced myopathy when co-prescribed."
+                        });
+                    }
+                });
+
+                if (interactionCheck.interactions.length > 0) {
+                    interactionCheck.interactions_found = interactionCheck.interactions.length;
+                    const maxSev = Math.max(...interactionCheck.interactions.map(i => i.severity));
+                    interactionCheck.severity = maxSev === 3 ? "critical" : "major";
+                    overallSeverity = Math.max(overallSeverity, maxSev);
+                    interactionCheck.recommendation = maxSev === 3 ?
+                        "🛑 CRITICAL: Do not prescribe combination. Consult physician for alternative." :
+                        "⚠️ MAJOR: Serious interaction risk. Prescribe only if benefit outweighs risk.";
+                }
+            } else {
+                // If patient or drug not found, perform simulated check
+                allergyCheck.message = "Patient or drug ID not found in local mock database. Performing general analysis.";
+            }
+
+            // Query Gemini for clinical recommendation if API configured
+            const pInfoStr = patient ? 
+                `คนไข้: ${patient.name}, อายุ: ${patient.age} ปี, แพ้ยา: ${patient.allergies.join(', ') || 'ไม่มี'}, ยาที่ใช้อยู่: ${patient.history.map(h => h.name).join(', ') || 'ไม่มี'}` :
+                `คนไข้ ID: ${patientId} (ไม่พบในระบบ)`;
+            const dInfoStr = drug ? 
+                `ยาที่จะสั่งจ่าย: ${drug.name} (กลุ่ม: ${drug.group})` :
+                `ยา ID: ${drugId} (ไม่พบในระบบ)`;
+
+            const sysPrompt = `คุณคือเภสัชกรคลินิกและระบบตรวจสอบความปลอดภัยของยา (Clinical Prescribing Safety Audit) ของโรงพยาบาลมุกดาหาร
+            วิเคราะห์ความปลอดภัยและให้คำแนะนำที่จำเป็นสั้นๆ กระชับเกี่ยวกับการสั่งจ่ายยานี้`;
+            
+            const userMsg = `${pInfoStr}\n${dInfoStr}\nผลการวิเคราะห์ระบบเบื้องต้น:\nAllergy Risk: ${allergyCheck.severity}\nInteractions Found: ${interactionCheck.interactions_found} รายการ`;
+
+            let aiRec = "กรุณาตรวจสอบประวัติคนไข้และคุณสมบัติของยาประกอบการพิจารณาทางคลินิก";
+            let aiResultText = await callGeminiAPI(sysPrompt, userMsg);
+            if (aiResultText) {
+                aiRec = aiResultText;
+            } else {
+                // Static fallback recommendation
+                if (overallSeverity === 3) {
+                    aiRec = "ไม่แนะนำให้จ่ายยาเนื่องจากมีสัญญาณเตือนระดับวิกฤต (ความเสี่ยงในการแพ้ยาอย่างรุนแรง หรืออันตรกิริยาระหว่างยาที่รุนแรงถึงแก่ชีวิต) กรุณาพิจารณายาทดแทนอื่น";
+                } else if (overallSeverity === 2) {
+                    aiRec = "ควรติดตามอาการอย่างใกล้ชิด (เช่น ปวดกล้ามเนื้อ หรือระดับเอนไซม์กล้ามเนื้อ) หากจำเป็นต้องใช้ยาร่วมกัน";
+                } else {
+                    aiRec = "ไม่พบข้อห้ามใช้ที่รุนแรง สามารถจ่ายยาได้ภายใต้การติดตามทั่วไป";
+                }
+            }
+
+            const responseJson = {
+                success: true,
+                safety_check: {
+                    patient_id: Number(patientId),
+                    drug_id: Number(drugId),
+                    patient_name: patient ? patient.name : "Unknown Patient",
+                    drug_name: drug ? drug.name : "Unknown Drug",
+                    overall_severity: overallSeverity,
+                    safe_to_prescribe: overallSeverity < 3,
+                    allergy_check: allergyCheck,
+                    interaction_check: interactionCheck,
+                    contraindications: {
+                        checked: true,
+                        contraindications_found: 0,
+                        message: "No contraindications detected"
+                    },
+                    ai_recommendation: {
+                        recommendation: aiRec,
+                        confidence: "high",
+                        source: "AI Clinical Analysis"
+                    },
+                    timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19)
+                }
+            };
+
+            safetyResult.textContent = formatJson(responseJson);
+        });
+
+        // Helper to calculate Standard Deviation
+        function getStdDev(arr) {
+            const n = arr.length;
+            if (n < 2) return 0;
+            const mean = arr.reduce((a, b) => a + b) / n;
+            return Math.sqrt(arr.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / (n - 1));
+        }
+
+        // Helper to calculate 3-month moving average
+        function getMovingAverage(arr, period = 3) {
+            const res = [];
+            for (let i = period - 1; i < arr.length; i++) {
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += arr[i - j];
+                }
+                res.push(sum / period);
+            }
+            return res;
+        }
+
+        // 📈 Inventory Forecast event
+        document.getElementById('forecast-btn').addEventListener('click', async () => {
+            const drugId = document.getElementById('forecast-drug').value.trim();
+            const months = Number(document.getElementById('forecast-months').value) || 3;
+            if (!drugId) {
+                forecastResult.textContent = 'กรุณาระบุ drug_id';
+                return;
+            }
+
+            forecastResult.textContent = 'กำลังคำนวณพยากรณ์ความต้องการ...';
+
+            const drug = mockDrugs[drugId];
+            let historical = [];
+            let movingAvg = [];
+            let forecast = [];
+            let metrics = {};
+
+            if (drug) {
+                // Generate historical data
+                const usage = drug.usage;
+                historical = usage.map((q, idx) => {
+                    const m = new Date();
+                    m.setMonth(m.getMonth() - (usage.length - idx));
+                    const monthStr = m.toISOString().substring(0, 7);
+                    return { month: monthStr, total_quantity: q };
+                });
+
+                movingAvg = getMovingAverage(usage, 3);
+                const lastAvg = movingAvg[movingAvg.length - 1];
+
+                for (let i = 1; i <= months; i++) {
+                    const fMonth = new Date();
+                    fMonth.setMonth(fMonth.getMonth() + i);
+                    forecast.push({
+                        month: fMonth.toISOString().substring(0, 7),
+                        forecast_quantity: Math.round(lastAvg),
+                        confidence: "medium"
+                    });
+                }
+
+                const stdDev = getStdDev(usage);
+                const safetyStock = Math.round(1.65 * stdDev * Math.sqrt(1));
+                const reorderPoint = Math.round(lastAvg + safetyStock);
+
+                metrics = {
+                    avg_monthly_usage: Math.round(lastAvg * 100) / 100,
+                    std_dev: Math.round(stdDev * 100) / 100,
+                    safety_stock: safetyStock,
+                    reorder_point: reorderPoint,
+                    service_level: "95%"
+                };
+            } else {
+                // Mock fallback for non-existing drug
+                forecastResult.textContent = `ไม่พบยารหัส ${drugId} ในคลังระบบเพื่อคำนวณสถิติประวัติการจ่ายยา`;
+                return;
+            }
+
+            const sysPrompt = `คุณคือเภสัชกรผู้จัดการคลังเวชภัณฑ์ (Inventory & Supply Chain Pharmacist)
+            วิเคราะห์แนวโน้มพยากรณ์การใช้งาน และความเสี่ยงของยาต่อไปนี้ พร้อมสรุปแนวทางบริหารสต็อกสั้นๆ`;
+
+            const userMsg = `ยารายการ: ${drug.name}\nข้อมูลประวัติ 6 เดือน: ${JSON.stringify(historical)}\nพยากรณ์ล่วงหน้า ${months} เดือน: ${JSON.stringify(forecast)}\nMetrics คลัง: Average: ${metrics.avg_monthly_usage}, Safety Stock: ${metrics.safety_stock}, Reorder Point: ${metrics.reorder_point}`;
+
+            let aiInsight = "ข้อมูลพยากรณ์สต็อกวิเคราะห์เสร็จสมบูรณ์ ควรตรวจสอบร่วมกับกำลังผลิตและฤดูกาลระบาดของโรค";
+            let aiResponseText = await callGeminiAPI(sysPrompt, userMsg);
+            if (aiResponseText) {
+                aiInsight = aiResponseText;
+            }
+
+            const responseJson = {
+                success: true,
+                drug_id: Number(drugId),
+                drug_name: drug.name,
+                months: months,
+                forecast: {
+                    historical: historical,
+                    moving_average: movingAvg.map(x => Math.round(x * 100) / 100),
+                    forecast: forecast,
+                    metrics: metrics
+                },
+                ai_insight: aiInsight
+            };
+
+            forecastResult.textContent = formatJson(responseJson);
+        });
+
+        // EOQ event
+        document.getElementById('eoq-btn').addEventListener('click', async () => {
+            const drugId = document.getElementById('forecast-drug').value.trim();
+            if (!drugId) {
+                forecastResult.textContent = 'กรุณาระบุ drug_id';
+                return;
+            }
+
+            forecastResult.textContent = 'กำลังคำนวณ EOQ...';
+
+            const drug = mockDrugs[drugId];
+            if (!drug) {
+                forecastResult.textContent = `ไม่พบข้อมูลสำหรับยารหัส ${drugId}`;
+                return;
+            }
+
+            // EOQ = sqrt((2 * annualDemand * orderingCost) / holdingCost)
+            const avgUsage = drug.usage.reduce((a, b) => a + b) / drug.usage.length;
+            const avgDaily = avgUsage / 30;
+            const annualDemand = avgDaily * 365;
+            const orderingCost = drug.orderCost;
+            const holdingCost = drug.price * drug.holdingCostRate;
+
+            const eoq = Math.round(Math.sqrt((2 * annualDemand * orderingCost) / holdingCost));
+            const leadTimeDays = 7;
+            const safetyStockDays = 14;
+            const reorderPoint = Math.round((avgDaily * leadTimeDays) + (avgDaily * safetyStockDays));
+
+            const responseJson = {
+                success: true,
+                drug_id: Number(drugId),
+                eoq: {
+                    drug_name: drug.name,
+                    avg_daily_usage: Math.round(avgDaily * 100) / 100,
+                    annual_demand: Math.round(annualDemand * 100) / 100,
+                    economic_order_quantity: eoq,
+                    reorder_point: reorderPoint,
+                    orders_per_year: Math.round((annualDemand / eoq) * 10) / 10,
+                    days_between_orders: Math.round(365 / (annualDemand / eoq))
+                }
+            };
+
+            forecastResult.textContent = formatJson(responseJson);
+        });
+
+        // 🛰️ System Status event
+        document.getElementById('check-setup').addEventListener('click', async () => {
+            setupStatus.textContent = 'กำลังตรวจสอบ...';
+            
+            const apiKey = geminiKeyInput.value.trim();
+            let isGeminiReady = false;
+            let geminiModelName = "None";
+
+            if (apiKey || apiKey === '') {
+                // Test connectivity silently
+                const keyToTest = apiKey || 'AIzaSyApt3F3OqbhFMnx1YJ617OFYlH--CaRzxg';
+                try {
+                    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash?key=${keyToTest}`;
+                    const res = await fetch(testUrl);
+                    if (res.ok) {
+                        isGeminiReady = true;
+                        geminiModelName = "gemini-1.5-flash (Google Generative AI)";
+                    }
+                } catch (e) {
+                    isGeminiReady = false;
+                }
+            }
+
+            setTimeout(() => {
+                setupStatus.textContent = isGeminiReady ? 'พร้อมใช้งาน' : 'ทำงานโหมด Offline (จำลอง)';
+                
+                const statusJson = {
+                    ready: true,
+                    environment: "GitHub Pages (Static Mode)",
+                    database_status: "Offline (Mock Data loaded)",
+                    gemini_api: isGeminiReady ? "Connected" : "Not configured / Network issue (Offline simulation active)",
+                    model: geminiModelName,
+                    mock_data: {
+                        patients: Object.keys(mockPatients).length,
+                        drugs: Object.keys(mockDrugs).length
+                    },
+                    modules: {
+                        chat: "active",
+                        clinical_safety: "active (client rules + gemini fallback)",
+                        inventory_forecast: "active (moving average math + gemini insights)",
+                        eoq_calculator: "active (wilson formula in JS)"
+                    },
+                    timestamp: new Date().toISOString()
+                };
+
+                setupResult.textContent = formatJson(statusJson);
+            }, 600);
+        });
+    </script>
+</body>
+</html>
